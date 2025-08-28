@@ -35,9 +35,10 @@
     "typescript-eslint": "8.31.0",
     "vite": "6.3.2",
     "wrangler": "^4.25.0"
-  },
+  {
   "scripts": {
     "build": "tsc -b && vite build",
+    "build:dev": "vite build --mode development",
     "cf-typegen": "wrangler types",
     "check": "tsc && vite build && wrangler deploy --dry-run",
     "dev": "vite",
