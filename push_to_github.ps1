@@ -24,7 +24,7 @@ if (-not (Test-Path ".git")) {
     git init
     
     Write-Host "🔗 Por favor, adicione o remote manualmente:" -ForegroundColor Yellow
-    Write-Host "git remote add origin https://github.com/seu-usuario/musica-drive.git" -ForegroundColor Green
+    Write-Host "git remote add origin https://github.com/digao1000/musica-drive.git" -ForegroundColor Green
     Write-Host "Ou edite este script para adicionar automaticamente." -ForegroundColor Yellow
 }
 

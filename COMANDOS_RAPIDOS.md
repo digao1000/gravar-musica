@@ -7,7 +7,7 @@
 2. Clique em "New repository"
 3. Nome: `musica-drive`
 4. **NÃO** marque "Initialize with README"
-5. Copie a URL: `https://github.com/seu-usuario/musica-drive.git`
+5.3. Copie a URL: `https://github.com/digao1000/musica-drive.git`
 
 ### 2. Comandos para Executar
 

@@ -42,7 +42,7 @@ git init
 git add .
 git commit -m "Primeiro commit - MusicaDrive"
 git branch -M main
-git remote add origin https://github.com/seu-usuario/musica-drive.git
+git remote add origin https://github.com/digao1000/musica-drive.git
 git push -u origin main
 ```
 

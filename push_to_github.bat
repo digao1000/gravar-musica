@@ -18,7 +18,7 @@ if not exist ".git" (
     echo 📁 Inicializando novo repositório Git...
     git init
     echo 🔗 Por favor, adicione o remote manualmente:
-    echo git remote add origin https://github.com/seu-usuario/musica-drive.git
+    echo git remote add origin https://github.com/digao1000/musica-drive.git
     echo Ou edite este script para adicionar automaticamente.
 )
 

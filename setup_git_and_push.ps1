@@ -26,11 +26,10 @@ try {
     Write-Host "✅ Remote já configurado: $remoteUrl" -ForegroundColor Green
 } catch {
     Write-Host "🔗 Configurando remote origin..." -ForegroundColor Yellow
-    $githubUrl = Read-Host "Digite a URL do seu repositório GitHub (ex: https://github.com/seu-usuario/musica-drive.git)"
+    $githubUrl = Read-Host "Digite a URL do seu repositório GitHub (padrão: https://github.com/digao1000/musica-drive.git)"
     if ([string]::IsNullOrWhiteSpace($githubUrl)) {
-        Write-Host "❌ URL é obrigatória" -ForegroundColor Red
-        Read-Host "Pressione Enter para sair"
-        exit 1
+        $githubUrl = "https://github.com/digao1000/musica-drive.git"
+        Write-Host "✅ Usando URL padrão: $githubUrl" -ForegroundColor Green
     }
     git remote add origin $githubUrl
     Write-Host "✅ Remote configurado" -ForegroundColor Green
