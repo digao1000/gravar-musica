@@ -21,29 +21,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event: AuthChangeEvent, session: Session | null) => {
+      (_event: AuthChangeEvent, session: Session | null) => {
+        console.log('Auth state changed:', _event, session?.user?.id);
         setSession(session);
         
         if (session?.user) {
-          // Fetch user profile from our custom table
-          const { data: userData } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-            
-          if (userData) {
-            setUser({
-              id: userData.id,
-              name: userData.name,
-              email: userData.email,
-              role: userData.role as 'ADMIN' | 'FUNCIONARIO',
-              is_active: userData.is_active,
-              last_login_at: userData.last_login_at || undefined,
-              created_at: userData.created_at,
-              updated_at: userData.updated_at
-            });
-          }
+          // Use setTimeout to prevent potential issues with auth state changes
+          setTimeout(async () => {
+            try {
+              // Fetch user profile from our custom table
+              const { data: userData, error } = await supabase
+                .from('users')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
+                
+              console.log('User data fetched:', userData, error);
+                
+              if (userData && !error) {
+                setUser({
+                  id: userData.id,
+                  name: userData.name,
+                  email: userData.email,
+                  role: userData.role as 'ADMIN' | 'FUNCIONARIO',
+                  is_active: userData.is_active,
+                  last_login_at: userData.last_login_at || undefined,
+                  created_at: userData.created_at,
+                  updated_at: userData.updated_at
+                });
+              } else {
+                console.log('No user data found or error occurred');
+                setUser(null);
+              }
+            } catch (error) {
+              console.error('Error fetching user data:', error);
+              setUser(null);
+            }
+          }, 0);
         } else {
           setUser(null);
         }
@@ -54,17 +68,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
+      console.log('Initial session check:', session?.user?.id);
       setSession(session);
       
       if (session?.user) {
-        // Fetch user profile from our custom table
-        supabase
-          .from('users')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-          .then(({ data: userData }: { data: any }) => {
-            if (userData) {
+        // Use setTimeout to prevent potential issues
+        setTimeout(async () => {
+          try {
+            // Fetch user profile from our custom table
+            const { data: userData, error } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+              
+            console.log('Initial user data fetched:', userData, error);
+              
+            if (userData && !error) {
               setUser({
                 id: userData.id,
                 name: userData.name,
@@ -75,10 +95,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 created_at: userData.created_at,
                 updated_at: userData.updated_at
               });
+            } else {
+              console.log('No initial user data found');
+              setUser(null);
             }
-          });
+          } catch (error) {
+            console.error('Error fetching initial user data:', error);
+            setUser(null);
+          }
+        }, 0);
+      } else {
+        setUser(null);
       }
       
+      setIsLoading(false);
+    }).catch((error) => {
+      console.error('Error getting session:', error);
       setIsLoading(false);
     });
 
