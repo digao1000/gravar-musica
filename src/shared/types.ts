@@ -2,15 +2,15 @@ import z from "zod";
 
 // Pasta Schema
 export const PastaSchema = z.object({
-  id: z.number(),
+  id: z.string(),
   nome: z.string(),
-  codigo: z.string().optional(),
+  codigo: z.string().nullable().optional(),
   qtd_musicas: z.number().int().positive(),
   tamanho_gb: z.number().positive(),
   preco: z.number().min(0),
-  capa_url: z.string().optional(),
-  descricao: z.string().optional(),
-  genero: z.string().optional(),
+  capa_url: z.string().nullable().optional(),
+  descricao: z.string().nullable().optional(),
+  genero: z.string().nullable().optional(),
   is_active: z.boolean(),
   created_at: z.string(),
   updated_at: z.string()
@@ -23,7 +23,7 @@ export const PedidoStatusSchema = z.enum(['ENVIADO', 'EM_SEPARACAO', 'PRONTO', '
 export const FormaPagamentoSchema = z.enum(['DINHEIRO', 'PIX', 'CARTAO_DEBITO', 'CARTAO_CREDITO']);
 
 export const PedidoSchema = z.object({
-  id: z.number(),
+  id: z.string(),
   cliente_nome: z.string(),
   cliente_contato: z.string(),
   pendrive_gb: z.number().int().positive(),
@@ -34,7 +34,7 @@ export const PedidoSchema = z.object({
   total_itens: z.number().int().positive(),
   total_musicas: z.number().int().positive(),
   total_valor: z.number().min(0),
-  historico_status: z.string(),
+  historico_status: z.string().optional(),
   created_at: z.string(),
   updated_at: z.string()
 });
@@ -45,9 +45,9 @@ export type FormaPagamento = z.infer<typeof FormaPagamentoSchema>;
 
 // Pedido Item Schema
 export const PedidoItemSchema = z.object({
-  id: z.number(),
-  pedido_id: z.number(),
-  pasta_id: z.number(),
+  id: z.string(),
+  pedido_id: z.string(),
+  pasta_id: z.string(),
   nome_pasta: z.string(),
   qtd_musicas: z.number().int().positive(),
   tamanho_gb: z.number().positive(),
@@ -62,7 +62,7 @@ export type PedidoItem = z.infer<typeof PedidoItemSchema>;
 export const UserRoleSchema = z.enum(['ADMIN', 'FUNCIONARIO']);
 
 export const UserSchema = z.object({
-  id: z.number(),
+  id: z.string(),
   name: z.string(),
   email: z.string().email(),
   role: UserRoleSchema,
@@ -85,18 +85,18 @@ export const CreatePastaSchema = z.object({
   capa_url: z.string().optional(),
   descricao: z.string().optional(),
   genero: z.string().optional(),
-  is_active: z.boolean().optional().default(true)
+  is_active: z.boolean().default(true)
 });
 
 export const CreatePedidoSchema = z.object({
   cliente_nome: z.string().min(1),
   cliente_contato: z.string().min(1),
   pendrive_gb: z.number().int().positive(),
-  forma_pagamento: FormaPagamentoSchema,
   observacoes: z.string().optional(),
+  forma_pagamento: FormaPagamentoSchema.optional(),
   itens: z.array(z.object({
-    pasta_id: z.number(),
-    quantidade: z.number().int().positive().default(1)
+    pasta_id: z.string(),
+    quantidade: z.number().int().positive()
   })).min(1)
 });
 
@@ -107,7 +107,7 @@ export const UpdatePedidoStatusSchema = z.object({
 // Cart Item for frontend
 export const CartItemSchema = z.object({
   pasta: PastaSchema,
-  quantidade: z.number().int().positive().default(1)
+  quantidade: z.number().int().positive()
 });
 
 export type CartItem = z.infer<typeof CartItemSchema>;

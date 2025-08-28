@@ -4,6 +4,7 @@ import { Search, ShoppingCart, Filter, Music } from 'lucide-react';
 import PastaCard from '@/react-app/components/PastaCard';
 import CartSidebar from '@/react-app/components/CartSidebar';
 import { useCart } from '@/react-app/hooks/useCart';
+import { supabase } from '@/integrations/supabase/client';
 import { Pasta } from '@/shared/types';
 
 export default function Home() {
@@ -28,16 +29,41 @@ export default function Home() {
 
   const fetchPastas = async () => {
     try {
-      const params = new URLSearchParams();
-      if (searchTerm) params.append('search', searchTerm);
-      if (selectedGenero) params.append('genero', selectedGenero);
-      if (minPreco) params.append('minPreco', minPreco);
-      if (maxPreco) params.append('maxPreco', maxPreco);
+      let query = supabase
+        .from('pastas')
+        .select('*')
+        .eq('is_active', true);
 
-      const response = await fetch(`/api/pastas?${params}`);
-      if (response.ok) {
-        const data = await response.json();
-        setPastas(data);
+      // Apply search filter
+      if (searchTerm) {
+        query = query.or(`nome.ilike.%${searchTerm}%,codigo.ilike.%${searchTerm}%,descricao.ilike.%${searchTerm}%`);
+      }
+
+      // Apply genre filter
+      if (selectedGenero) {
+        query = query.eq('genero', selectedGenero);
+      }
+
+      // Apply price filters
+      if (minPreco) {
+        query = query.gte('preco', parseFloat(minPreco));
+      }
+      if (maxPreco) {
+        query = query.lte('preco', parseFloat(maxPreco));
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching pastas:', error);
+      } else {
+        setPastas(data?.map(pasta => ({
+          ...pasta,
+          codigo: pasta.codigo || undefined,
+          capa_url: pasta.capa_url || undefined,
+          descricao: pasta.descricao || undefined,
+          genero: pasta.genero || undefined
+        })) || []);
       }
     } catch (error) {
       console.error('Error fetching pastas:', error);

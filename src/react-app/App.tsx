@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router";
-import { AuthProvider } from "@/react-app/hooks/useLocalAuth";
+import { AuthProvider } from "@/react-app/hooks/useSupabaseAuth";
 import HomePage from "@/react-app/pages/Home";
 import Login from "@/react-app/pages/Login";
 import AuthCallback from "@/react-app/pages/AuthCallback";

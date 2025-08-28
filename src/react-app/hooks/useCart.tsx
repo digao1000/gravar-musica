@@ -8,8 +8,8 @@ interface CartState {
 
 type CartAction = 
   | { type: 'ADD_ITEM'; pasta: Pasta }
-  | { type: 'REMOVE_ITEM'; pastaId: number }
-  | { type: 'UPDATE_QUANTITY'; pastaId: number; quantidade: number }
+  | { type: 'REMOVE_ITEM'; pastaId: string }
+  | { type: 'UPDATE_QUANTITY'; pastaId: string; quantidade: number }
   | { type: 'CLEAR_CART' }
   | { type: 'SET_PENDRIVE_SIZE'; size: PendriveSize }
   | { type: 'LOAD_CART'; state: CartState };
@@ -79,8 +79,8 @@ const CartContext = createContext<{
   state: CartState;
   dispatch: React.Dispatch<CartAction>;
   addItem: (pasta: Pasta) => void;
-  removeItem: (pastaId: number) => void;
-  updateQuantity: (pastaId: number, quantidade: number) => void;
+  removeItem: (pastaId: string) => void;
+  updateQuantity: (pastaId: string, quantidade: number) => void;
   clearCart: () => void;
   setPendriveSize: (size: PendriveSize) => void;
   getTotals: () => {
@@ -121,11 +121,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     dispatch({ type: 'ADD_ITEM', pasta });
   };
 
-  const removeItem = (pastaId: number) => {
+  const removeItem = (pastaId: string) => {
     dispatch({ type: 'REMOVE_ITEM', pastaId });
   };
 
-  const updateQuantity = (pastaId: number, quantidade: number) => {
+  const updateQuantity = (pastaId: string, quantidade: number) => {
     dispatch({ type: 'UPDATE_QUANTITY', pastaId, quantidade });
   };
 
