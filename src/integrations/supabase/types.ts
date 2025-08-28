@@ -14,7 +14,186 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      pastas: {
+        Row: {
+          capa_url: string | null
+          codigo: string | null
+          created_at: string
+          descricao: string | null
+          genero: string | null
+          id: string
+          is_active: boolean
+          nome: string
+          preco: number
+          qtd_musicas: number
+          tamanho_gb: number
+          updated_at: string
+        }
+        Insert: {
+          capa_url?: string | null
+          codigo?: string | null
+          created_at?: string
+          descricao?: string | null
+          genero?: string | null
+          id?: string
+          is_active?: boolean
+          nome: string
+          preco: number
+          qtd_musicas: number
+          tamanho_gb: number
+          updated_at?: string
+        }
+        Update: {
+          capa_url?: string | null
+          codigo?: string | null
+          created_at?: string
+          descricao?: string | null
+          genero?: string | null
+          id?: string
+          is_active?: boolean
+          nome?: string
+          preco?: number
+          qtd_musicas?: number
+          tamanho_gb?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pedido_itens: {
+        Row: {
+          created_at: string
+          id: string
+          nome_pasta: string
+          pasta_id: string
+          pedido_id: string
+          preco_unit: number
+          qtd_musicas: number
+          tamanho_gb: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome_pasta: string
+          pasta_id: string
+          pedido_id: string
+          preco_unit: number
+          qtd_musicas: number
+          tamanho_gb: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome_pasta?: string
+          pasta_id?: string
+          pedido_id?: string
+          preco_unit?: number
+          qtd_musicas?: number
+          tamanho_gb?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedido_itens_pasta_id_fkey"
+            columns: ["pasta_id"]
+            isOneToOne: false
+            referencedRelation: "pastas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_itens_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pedidos: {
+        Row: {
+          cliente_contato: string
+          cliente_nome: string
+          created_at: string
+          forma_pagamento: string | null
+          historico_status: Json | null
+          id: string
+          observacoes: string | null
+          pendrive_gb: number
+          status: string
+          total_gb: number
+          total_itens: number
+          total_musicas: number
+          total_valor: number
+          updated_at: string
+        }
+        Insert: {
+          cliente_contato: string
+          cliente_nome: string
+          created_at?: string
+          forma_pagamento?: string | null
+          historico_status?: Json | null
+          id?: string
+          observacoes?: string | null
+          pendrive_gb: number
+          status?: string
+          total_gb: number
+          total_itens: number
+          total_musicas: number
+          total_valor: number
+          updated_at?: string
+        }
+        Update: {
+          cliente_contato?: string
+          cliente_nome?: string
+          created_at?: string
+          forma_pagamento?: string | null
+          historico_status?: Json | null
+          id?: string
+          observacoes?: string | null
+          pendrive_gb?: number
+          status?: string
+          total_gb?: number
+          total_itens?: number
+          total_musicas?: number
+          total_valor?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          is_active: boolean
+          last_login_at: string | null
+          name: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          is_active?: boolean
+          last_login_at?: string | null
+          name: string
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          is_active?: boolean
+          last_login_at?: string | null
+          name?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
