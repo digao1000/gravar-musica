@@ -24,8 +24,8 @@ export default function PastaCard({ pasta }: PastaCardProps) {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden">
-      <div className="aspect-square relative overflow-hidden bg-gradient-to-br from-purple-100 to-pink-100">
+    <div className="bg-card rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden">
+      <div className="aspect-square relative overflow-hidden bg-gradient-primary">
         {pasta.capa_url ? (
           <img 
             src={pasta.capa_url} 
@@ -34,7 +34,7 @@ export default function PastaCard({ pasta }: PastaCardProps) {
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <Music className="w-16 h-16 text-purple-400" />
+            <Music className="w-16 h-16 text-primary-foreground" />
           </div>
         )}
         {pasta.genero && (
@@ -45,19 +45,19 @@ export default function PastaCard({ pasta }: PastaCardProps) {
       </div>
       
       <div className="p-4">
-        <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-2">
+        <h3 className="font-bold text-lg text-card-foreground mb-2 line-clamp-2">
           {pasta.nome}
         </h3>
         
         {pasta.codigo && (
           <div className="mb-2">
-            <span className="inline-block bg-purple-100 text-purple-800 text-xs font-mono px-2 py-1 rounded">
+            <span className="inline-block bg-secondary text-secondary-foreground text-xs font-mono px-2 py-1 rounded">
               #{pasta.codigo}
             </span>
           </div>
         )}
         
-        <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
+        <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
           <div className="flex items-center gap-1">
             <Music className="w-4 h-4" />
             <span>{pasta.qtd_musicas} músicas</span>
@@ -69,19 +69,19 @@ export default function PastaCard({ pasta }: PastaCardProps) {
         </div>
 
         {pasta.descricao && (
-          <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+          <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
             {pasta.descricao}
           </p>
         )}
 
         <div className="flex items-center justify-between">
-          <span className="text-2xl font-bold text-purple-600">
+          <span className="text-2xl font-bold text-primary">
             {formatPrice(pasta.preco)}
           </span>
           
           <button
             onClick={() => addItem(pasta)}
-            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl"
+            className="bg-gradient-primary hover:opacity-90 text-primary-foreground px-4 py-2 rounded-lg flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl"
           >
             <ShoppingCart className="w-4 h-4" />
             Adicionar
