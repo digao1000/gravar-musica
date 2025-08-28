@@ -1,0 +1,53 @@
+
+CREATE TABLE users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('ADMIN', 'FUNCIONARIO')),
+  is_active BOOLEAN NOT NULL DEFAULT 1,
+  last_login_at DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE pastas (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome TEXT NOT NULL,
+  qtd_musicas INTEGER NOT NULL,
+  tamanho_gb REAL NOT NULL,
+  preco REAL NOT NULL,
+  capa_url TEXT,
+  descricao TEXT,
+  genero TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE pedidos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  cliente_nome TEXT NOT NULL,
+  cliente_contato TEXT NOT NULL,
+  pendrive_gb INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'ENVIADO' CHECK (status IN ('ENVIADO', 'EM_SEPARACAO', 'PRONTO', 'ENTREGUE', 'CANCELADO')),
+  observacoes TEXT,
+  total_gb REAL NOT NULL,
+  total_itens INTEGER NOT NULL,
+  total_musicas INTEGER NOT NULL,
+  total_valor REAL NOT NULL,
+  historico_status TEXT DEFAULT '[]',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE pedido_itens (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  pedido_id INTEGER NOT NULL,
+  pasta_id INTEGER NOT NULL,
+  nome_pasta TEXT NOT NULL,
+  qtd_musicas INTEGER NOT NULL,
+  tamanho_gb REAL NOT NULL,
+  preco_unit REAL NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
