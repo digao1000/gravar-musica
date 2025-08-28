@@ -25,6 +25,10 @@ export default defineConfig(({ mode }) => ({
         manualChunks: undefined,
       },
     },
+    outDir: 'dist',
+    assetsDir: 'assets',
+    sourcemap: false,
+    minify: 'terser',
   },
   resolve: {
     alias: {
@@ -33,4 +37,5 @@ export default defineConfig(({ mode }) => ({
   },
   // Ensure SPA fallback for client-side routing
   appType: 'spa',
+  base: './',
 }));

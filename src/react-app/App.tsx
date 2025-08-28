@@ -9,35 +9,23 @@ import ProtectedRoute from "@/react-app/components/ProtectedRoute";
 import { CartProvider } from "@/react-app/hooks/useCart";
 
 export default function App() {
-  console.log('App component rendering');
-  
-  try {
-    return (
-      <AuthProvider>
-        <CartProvider>
-          <Router>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/checkout" element={<Checkout />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/auth/callback" element={<AuthCallback />} />
-              <Route path="/admin" element={
-                <ProtectedRoute>
-                  <Admin />
-                </ProtectedRoute>
-              } />
-            </Routes>
-          </Router>
-        </CartProvider>
-      </AuthProvider>
-    );
-  } catch (error) {
-    console.error('Error rendering App:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-    return (
-      <div style={{ padding: '20px', textAlign: 'center', color: 'red' }}>
-        Erro na aplicação: {errorMessage}
-      </div>
-    );
-  }
+  return (
+    <AuthProvider>
+      <CartProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/admin" element={
+              <ProtectedRoute>
+                <Admin />
+              </ProtectedRoute>
+            } />
+          </Routes>
+        </Router>
+      </CartProvider>
+    </AuthProvider>
+  );
 }

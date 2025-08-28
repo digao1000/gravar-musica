@@ -22,7 +22,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event: AuthChangeEvent, session: Session | null) => {
-        console.log('Auth state changed:', _event, session?.user?.id);
         setSession(session);
         
         if (session?.user) {
@@ -36,8 +35,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 .eq('id', session.user.id)
                 .single();
                 
-              console.log('User data fetched:', userData, error);
-                
               if (userData && !error) {
                 setUser({
                   id: userData.id,
@@ -50,7 +47,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                   updated_at: userData.updated_at
                 });
               } else {
-                console.log('No user data found or error occurred');
                 setUser(null);
               }
             } catch (error) {
@@ -68,7 +64,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
-      console.log('Initial session check:', session?.user?.id);
       setSession(session);
       
       if (session?.user) {
@@ -82,8 +77,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               .eq('id', session.user.id)
               .single();
               
-            console.log('Initial user data fetched:', userData, error);
-              
             if (userData && !error) {
               setUser({
                 id: userData.id,
@@ -96,7 +89,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 updated_at: userData.updated_at
               });
             } else {
-              console.log('No initial user data found');
               setUser(null);
             }
           } catch (error) {
