@@ -9,6 +9,8 @@ import ProtectedRoute from "@/react-app/components/ProtectedRoute";
 import { CartProvider } from "@/react-app/hooks/useCart";
 
 export default function App() {
+  console.log('App component rendering');
+  
   return (
     <AuthProvider>
       <CartProvider>
