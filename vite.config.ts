@@ -28,7 +28,8 @@ export default defineConfig(({ mode }) => ({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
-    minify: 'terser',
+    // Use esbuild for minification (default, faster than terser)
+    minify: mode === 'production' ? 'esbuild' : false,
   },
   resolve: {
     alias: {
