@@ -26,7 +26,7 @@ REM Verificar se há remote configurado
 git remote get-url origin >nul 2>nul
 if %errorlevel% neq 0 (
     echo 🔗 Configurando remote origin...
-    set /p github_url=Digite a URL do seu repositório GitHub: 
+    set /p github_url=Digite a URL do seu repositório GitHub (padrão: https://github.com/digao1000/musica-drive.git): 
     if "%github_url%"=="" (
         echo ❌ URL é obrigatória
         pause
