@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useCart } from '@/react-app/hooks/useCart';
+import { supabase } from '@/integrations/supabase/client';
 import { ShoppingCart, User, Phone, MessageSquare, ArrowLeft, Check, CreditCard, Smartphone, DollarSign } from 'lucide-react';
 
 export default function Checkout() {
@@ -16,10 +17,12 @@ export default function Checkout() {
   });
 
   const [phoneError, setPhoneError] = useState('');
+  const [nameError, setNameError] = useState('');
+  const [observacoesError, setObservacoesError] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [pedidoId, setPedidoId] = useState<number | null>(null);
+  const [pedidoId, setPedidoId] = useState<string | null>(null);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -52,6 +55,24 @@ export default function Checkout() {
     return '';
   };
 
+  const validateName = (name: string) => {
+    const trimmed = name.trim();
+    if (trimmed.length < 2 || trimmed.length > 100) {
+      return 'Nome deve ter entre 2 e 100 caracteres';
+    }
+    if (!/^[A-Za-zÀ-ÿ\s'.-]+$/.test(trimmed)) {
+      return 'Nome contém caracteres inválidos';
+    }
+    return '';
+  };
+
+  const validateObservacoes = (text: string) => {
+    if (text.length > 500) {
+      return 'Observações não podem exceder 500 caracteres';
+    }
+    return '';
+  };
+
   const handlePhoneChange = (value: string) => {
     // Allow only numbers, spaces, parentheses, and hyphens
     const formattedValue = value.replace(/[^\d\s()-]/g, '');
@@ -59,6 +80,18 @@ export default function Checkout() {
     
     const error = validatePhone(formattedValue);
     setPhoneError(error);
+  };
+
+  const handleNameChange = (value: string) => {
+    setFormData(prev => ({ ...prev, cliente_nome: value }));
+    const error = validateName(value);
+    setNameError(error);
+  };
+
+  const handleObservacoesChange = (value: string) => {
+    setFormData(prev => ({ ...prev, observacoes: value }));
+    const error = validateObservacoes(value);
+    setObservacoesError(error);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -69,44 +102,50 @@ export default function Checkout() {
       return;
     }
 
-    // Validate phone before submitting
+    // Validate all fields before submitting
     const phoneValidationError = validatePhone(formData.cliente_contato);
+    const nameValidationError = validateName(formData.cliente_nome);
+    const observacoesValidationError = validateObservacoes(formData.observacoes);
+
     if (phoneValidationError) {
       setPhoneError(phoneValidationError);
+      return;
+    }
+    if (nameValidationError) {
+      setNameError(nameValidationError);
+      return;
+    }
+    if (observacoesValidationError) {
+      setObservacoesError(observacoesValidationError);
       return;
     }
 
     setLoading(true);
 
     try {
-      const pedidoData = {
-        cliente_nome: formData.cliente_nome,
-        cliente_contato: formData.cliente_contato,
-        pendrive_gb: state.pendriveSize,
-        forma_pagamento: formData.forma_pagamento,
-        observacoes: formData.observacoes || undefined,
-        itens: state.items.map(item => ({
+      // Call the secure database function
+      const { data, error } = await supabase.rpc('create_order', {
+        p_cliente_nome: formData.cliente_nome.trim(),
+        p_cliente_contato: formData.cliente_contato,
+        p_pendrive_gb: state.pendriveSize,
+        p_forma_pagamento: formData.forma_pagamento,
+        p_observacoes: formData.observacoes.trim() || '',
+        p_itens: JSON.stringify(state.items.map(item => ({
           pasta_id: item.pasta.id,
           quantidade: item.quantidade
-        }))
-      };
-
-      const response = await fetch('/api/pedidos', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(pedidoData)
+        })))
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        setPedidoId(result.pedido_id);
+      if (error) {
+        console.error('Error creating order:', error);
+        alert(error.message || 'Erro ao criar pedido');
+        return;
+      }
+
+      if (data) {
+        setPedidoId(data);
         setSuccess(true);
         clearCart();
-      } else {
-        const error = await response.json();
-        alert(error.error || 'Erro ao criar pedido');
       }
     } catch (error) {
       console.error('Error creating order:', error);
@@ -253,10 +292,17 @@ export default function Checkout() {
                   type="text"
                   required
                   value={formData.cliente_nome}
-                  onChange={(e) => setFormData(prev => ({ ...prev, cliente_nome: e.target.value }))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent ${
+                    nameError 
+                      ? 'border-red-300 focus:ring-red-500' 
+                      : 'border-gray-300 focus:ring-purple-500'
+                  }`}
                   placeholder="Seu nome completo"
                 />
+                {nameError && (
+                  <p className="text-red-600 text-sm mt-1">{nameError}</p>
+                )}
               </div>
 
               <div>
@@ -329,18 +375,28 @@ export default function Checkout() {
                 </label>
                 <textarea
                   value={formData.observacoes}
-                  onChange={(e) => setFormData(prev => ({ ...prev, observacoes: e.target.value }))}
+                  onChange={(e) => handleObservacoesChange(e.target.value)}
                   rows={4}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent ${
+                    observacoesError 
+                      ? 'border-red-300 focus:ring-red-500' 
+                      : 'border-gray-300 focus:ring-purple-500'
+                  }`}
                   placeholder="Alguma observação especial sobre seu pedido..."
                 />
+                {observacoesError && (
+                  <p className="text-red-600 text-sm mt-1">{observacoesError}</p>
+                )}
+                <p className="text-gray-500 text-xs mt-1">
+                  Máximo 500 caracteres. {formData.observacoes.length}/500
+                </p>
               </div>
 
               <button
                 type="submit"
-                disabled={loading || !totals.canCheckout || !!phoneError}
+                disabled={loading || !totals.canCheckout || !!phoneError || !!nameError || !!observacoesError}
                 className={`w-full py-3 rounded-lg font-medium transition-all duration-200 ${
-                  totals.canCheckout && !loading && !phoneError
+                  totals.canCheckout && !loading && !phoneError && !nameError && !observacoesError
                     ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}

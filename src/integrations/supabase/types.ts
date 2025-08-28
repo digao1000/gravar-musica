@@ -199,6 +199,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_order: {
+        Args: {
+          p_cliente_contato: string
+          p_cliente_nome: string
+          p_forma_pagamento: string
+          p_itens: Json
+          p_observacoes: string
+          p_pendrive_gb: number
+        }
+        Returns: string
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string
