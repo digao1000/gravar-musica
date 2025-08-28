@@ -36,33 +36,53 @@ export default function PedidosManager() {
   }, [statusFilter]);
 
   const fetchPedidos = async () => {
+    setLoading(true);
     try {
-      let query = supabase
-        .from('pedidos')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Use the secure function that masks sensitive data for staff
+      const { data: ordersData, error: ordersError } = await supabase
+        .rpc('get_orders_for_staff');
+      
+      if (ordersError) throw ordersError;
 
+      // Apply status filter if needed
+      let filteredOrders = ordersData || [];
       if (statusFilter) {
-        query = query.eq('status', statusFilter);
+        filteredOrders = filteredOrders.filter(order => order.status === statusFilter);
       }
 
-      const { data, error } = await query;
+      // Get order items for each order
+      const ordersWithItems = await Promise.all(
+        filteredOrders.map(async (order) => {
+          const { data: items, error: itemsError } = await supabase
+            .from('pedido_itens')
+            .select(`
+              pasta_id,
+              qtd_musicas,
+              pasta:pastas(nome, preco)
+            `)
+            .eq('pedido_id', order.id);
 
-      if (error) {
-        console.error('Error fetching pedidos:', error);
-      } else {
-        // Cast the status field to the correct type
-        const typedData = data?.map(pedido => ({
-          ...pedido,
-          status: pedido.status as PedidoStatus,
-          forma_pagamento: pedido.forma_pagamento as any || undefined,
-          observacoes: pedido.observacoes || undefined,
-          historico_status: pedido.historico_status ? JSON.stringify(pedido.historico_status) : undefined
-        })) || [];
-        setPedidos(typedData);
-      }
+          if (itemsError) console.error('Error fetching items:', itemsError);
+          
+          return {
+            ...order,
+            status: order.status as PedidoStatus,
+            cliente_contato: order.cliente_contato_masked, // Use masked contact from function
+            forma_pagamento: order.forma_pagamento as any || undefined,
+            observacoes: order.observacoes || undefined,
+            historico_status: undefined, // Not available in masked function
+            itens: items?.map(item => ({
+              pasta_id: item.pasta_id,
+              quantidade: item.qtd_musicas,
+              pasta: item.pasta
+            })) || []
+          };
+        })
+      );
+
+      setPedidos(ordersWithItems);
     } catch (error) {
-      console.error('Error fetching pedidos:', error);
+      console.error('Erro ao buscar pedidos:', error);
     } finally {
       setLoading(false);
     }

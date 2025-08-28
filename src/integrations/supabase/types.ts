@@ -199,7 +199,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_current_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_orders_for_staff: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          cliente_contato_masked: string
+          cliente_nome: string
+          created_at: string
+          forma_pagamento: string
+          id: string
+          observacoes: string
+          pendrive_gb: number
+          status: string
+          total_gb: number
+          total_itens: number
+          total_musicas: number
+          total_valor: number
+          updated_at: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
