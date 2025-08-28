@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Plus, Edit, Trash2, Search, Music, Save, X, Download, Upload } from 'lucide-react';
 import { Pasta } from '@/shared/types';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PastaFormData {
   nome: string;
@@ -42,12 +43,22 @@ export default function PastasManager() {
 
   const fetchPastas = async () => {
     try {
-      const response = await fetch('/api/admin/pastas', {
-        credentials: 'include'
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setPastas(data);
+      const { data, error } = await supabase
+        .from('pastas')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching pastas:', error);
+      } else {
+        const pastasWithDefaults = data?.map(pasta => ({
+          ...pasta,
+          codigo: pasta.codigo || undefined,
+          capa_url: pasta.capa_url || undefined,
+          descricao: pasta.descricao || undefined,
+          genero: pasta.genero || undefined
+        })) || [];
+        setPastas(pastasWithDefaults);
       }
     } catch (error) {
       console.error('Error fetching pastas:', error);
@@ -196,48 +207,42 @@ export default function PastasManager() {
     }
     
     try {
-      const url = editingPasta ? `/api/pastas/${editingPasta.id}` : '/api/pastas';
-      const method = editingPasta ? 'PUT' : 'POST';
-      
       // Clean data before sending
       const cleanedData = {
-        ...formData,
         nome: formData.nome.trim(),
-        codigo: formData.codigo?.trim() || undefined,
-        descricao: formData.descricao?.trim() || undefined,
-        genero: formData.genero?.trim() || undefined,
-        capa_url: formData.capa_url?.trim() || undefined
+        codigo: formData.codigo?.trim() || null,
+        descricao: formData.descricao?.trim() || null,
+        genero: formData.genero?.trim() || null,
+        capa_url: formData.capa_url?.trim() || null,
+        qtd_musicas: formData.qtd_musicas,
+        tamanho_gb: formData.tamanho_gb,
+        preco: formData.preco,
+        is_active: formData.is_active
       };
       
-      console.log('Making request to:', url, { method, cleanedData });
-      
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(cleanedData),
-        credentials: 'include'
-      });
-
-      console.log('Response status:', response.status);
-
-      if (response.ok) {
-        await fetchPastas();
-        resetForm();
-        alert(editingPasta ? 'Pasta atualizada com sucesso!' : 'Pasta criada com sucesso!');
+      let result;
+      if (editingPasta) {
+        // Update existing pasta
+        result = await supabase
+          .from('pastas')
+          .update(cleanedData)
+          .eq('id', editingPasta.id);
       } else {
-        const error = await response.json();
-        console.error('Server error:', error);
-        
-        if (response.status === 401) {
-          alert('Sessão expirada. Por favor, faça login novamente.');
-          // Redirect to login page
-          window.location.href = '/login';
-        } else {
-          alert(error.error || 'Erro ao salvar pasta');
-        }
+        // Create new pasta
+        result = await supabase
+          .from('pastas')
+          .insert([cleanedData]);
       }
+
+      if (result.error) {
+        console.error('Error saving pasta:', result.error);
+        alert('Erro ao salvar pasta: ' + result.error.message);
+        return;
+      }
+
+      await fetchPastas();
+      resetForm();
+      alert(editingPasta ? 'Pasta atualizada com sucesso!' : 'Pasta criada com sucesso!');
     } catch (error) {
       console.error('Error saving pasta:', error);
       alert('Erro de conexão. Verifique sua internet e tente novamente.');
@@ -250,21 +255,22 @@ export default function PastasManager() {
     }
 
     try {
-      const response = await fetch(`/api/pastas/${pasta.id}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
+      const { error } = await supabase
+        .from('pastas')
+        .delete()
+        .eq('id', pasta.id);
 
-      if (response.ok) {
-        await fetchPastas();
-        alert('Pasta deletada com sucesso!');
-      } else {
-        const error = await response.json();
-        alert(error.error || 'Erro ao deletar pasta');
+      if (error) {
+        console.error('Error deleting pasta:', error);
+        alert('Erro ao deletar pasta: ' + error.message);
+        return;
       }
+
+      await fetchPastas();
+      alert('Pasta deletada com sucesso!');
     } catch (error) {
       console.error('Error deleting pasta:', error);
-      alert('Erro ao deletar pasta');
+      alert('Erro ao deletar pasta. Tente novamente.');
     }
   };
 

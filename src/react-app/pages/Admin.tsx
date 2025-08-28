@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLocalAuth } from '@/react-app/hooks/useLocalAuth';
+import { useSupabaseAuth } from '@/react-app/hooks/useSupabaseAuth';
 import { LayoutDashboard, Package, ShoppingBag, LogOut, Menu, X, FileText } from 'lucide-react';
 import Dashboard from '@/react-app/components/admin/Dashboard';
 import PastasManager from '@/react-app/components/admin/PastasManager';
@@ -9,7 +9,7 @@ import RelatoriosManager from '@/react-app/components/admin/RelatoriosManager';
 type ActiveTab = 'dashboard' | 'pastas' | 'pedidos' | 'relatorios';
 
 export default function Admin() {
-  const { user, logout } = useLocalAuth();
+  const { user, logout } = useSupabaseAuth();
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -126,15 +126,15 @@ export default function Admin() {
             <div className="flex items-center gap-3 mb-3">
               <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center">
                 <span className="text-white text-sm font-bold">
-                  {user?.username?.charAt(0).toUpperCase()}
+                  {user?.name?.charAt(0).toUpperCase() || 'A'}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">
-                  {user?.username}
+                  {user?.name || 'Usuário'}
                 </p>
                 <p className="text-xs text-gray-500 truncate">
-                  Administrador
+                  {user?.role || 'Administrador'}
                 </p>
               </div>
             </div>

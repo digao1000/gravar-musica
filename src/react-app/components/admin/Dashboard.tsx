@@ -1,29 +1,28 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, ShoppingBag, DollarSign, Users, Calendar, Clock, CheckCircle, Database, Trash2, AlertTriangle, X } from 'lucide-react';
+import { TrendingUp, ShoppingBag, DollarSign, Calendar, Database, Trash2, AlertTriangle, X } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DashboardStats {
   vendasHoje: { pedidos: number; valor: number };
   vendasSemana: { pedidos: number; valor: number };
   vendasMes: { pedidos: number; valor: number };
   ultimosPedidos: Array<{
-    id: number;
+    id: string;
     cliente_nome: string;
     status: string;
-    total_valor: number;
     created_at: string;
   }>;
 }
 
 interface DatabaseStats {
-  pastas: number;
-  pedidos: number;
-  pedido_itens: number;
-  pastas_em_uso: number;
+  totalPastas: number;
+  totalPedidos: number;
+  totalUsers: number;
 }
 
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [dbStats, setDbStats] = useState<DatabaseStats | null>(null);
+  const [databaseStats, setDatabaseStats] = useState<DatabaseStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDatabaseManager, setShowDatabaseManager] = useState(false);
 
@@ -34,13 +33,57 @@ export default function Dashboard() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/dashboard/stats');
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
-      }
+      // Fetch basic stats from Supabase
+      const today = new Date().toISOString().split('T')[0];
+      const startOfWeek = new Date();
+      startOfWeek.setDate(startOfWeek.getDate() - 7);
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+
+      // Get today's orders
+      const { data: todayOrders } = await supabase
+        .from('pedidos')
+        .select('total_valor')
+        .gte('created_at', today);
+
+      // Get week's orders
+      const { data: weekOrders } = await supabase
+        .from('pedidos')
+        .select('total_valor')
+        .gte('created_at', startOfWeek.toISOString());
+
+      // Get month's orders
+      const { data: monthOrders } = await supabase
+        .from('pedidos')
+        .select('total_valor, created_at, cliente_nome, status, id')
+        .gte('created_at', startOfMonth.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      const stats: DashboardStats = {
+        vendasHoje: {
+          pedidos: todayOrders?.length || 0,
+          valor: todayOrders?.reduce((sum, order) => sum + order.total_valor, 0) || 0
+        },
+        vendasSemana: {
+          pedidos: weekOrders?.length || 0,
+          valor: weekOrders?.reduce((sum, order) => sum + order.total_valor, 0) || 0
+        },
+        vendasMes: {
+          pedidos: monthOrders?.length || 0,
+          valor: monthOrders?.reduce((sum, order) => sum + order.total_valor, 0) || 0
+        },
+        ultimosPedidos: monthOrders?.map(order => ({
+          id: order.id,
+          cliente_nome: order.cliente_nome,
+          status: order.status,
+          created_at: order.created_at
+        })) || []
+      };
+
+      setStats(stats);
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error('Error fetching dashboard stats:', error);
     } finally {
       setLoading(false);
     }
@@ -48,33 +91,38 @@ export default function Dashboard() {
 
   const fetchDatabaseStats = async () => {
     try {
-      const response = await fetch('/api/admin/database-stats');
-      if (response.ok) {
-        const data = await response.json();
-        setDbStats(data);
-      }
+      // Get counts from Supabase
+      const [pastasResult, pedidosResult] = await Promise.all([
+        supabase.from('pastas').select('id', { count: 'exact' }),
+        supabase.from('pedidos').select('id', { count: 'exact' })
+      ]);
+
+      setDatabaseStats({
+        totalPastas: pastasResult.count || 0,
+        totalPedidos: pedidosResult.count || 0,
+        totalUsers: 0 // Placeholder since we don't track users separately yet
+      });
     } catch (error) {
       console.error('Error fetching database stats:', error);
     }
   };
 
   const clearPastas = async () => {
-    if (!confirm('ATENÇÃO: Isso excluirá todas as pastas não utilizadas permanentemente. Esta ação não pode ser desfeita. Continuar?')) {
+    if (!confirm('ATENÇÃO: Isso excluirá todas as pastas permanentemente. Esta ação não pode ser desfeita. Continuar?')) {
       return;
     }
 
     try {
-      const response = await fetch('/api/admin/clear-pastas', {
-        method: 'DELETE'
-      });
+      const { error } = await supabase
+        .from('pastas')
+        .delete()
+        .neq('id', 'dummy'); // Delete all rows
 
-      if (response.ok) {
-        const result = await response.json();
-        alert(result.message);
-        fetchDatabaseStats();
+      if (error) {
+        alert('Erro ao excluir pastas: ' + error.message);
       } else {
-        const error = await response.json();
-        alert(error.error || 'Erro ao excluir pastas');
+        alert('Pastas excluídas com sucesso!');
+        fetchDatabaseStats();
       }
     } catch (error) {
       console.error('Error clearing pastas:', error);
@@ -88,18 +136,21 @@ export default function Dashboard() {
     }
 
     try {
-      const response = await fetch('/api/admin/clear-pedidos', {
-        method: 'DELETE'
-      });
+      // First delete pedido_itens (due to foreign key constraint)
+      await supabase.from('pedido_itens').delete().neq('id', 'dummy');
+      
+      // Then delete pedidos
+      const { error } = await supabase
+        .from('pedidos')
+        .delete()
+        .neq('id', 'dummy');
 
-      if (response.ok) {
-        const result = await response.json();
-        alert(result.message);
+      if (error) {
+        alert('Erro ao excluir pedidos: ' + error.message);
+      } else {
+        alert('Pedidos excluídos com sucesso!');
         fetchStats();
         fetchDatabaseStats();
-      } else {
-        const error = await response.json();
-        alert(error.error || 'Erro ao excluir pedidos');
       }
     } catch (error) {
       console.error('Error clearing pedidos:', error);
@@ -117,19 +168,14 @@ export default function Dashboard() {
     }
 
     try {
-      const response = await fetch('/api/admin/clear-all', {
-        method: 'DELETE'
-      });
+      // Delete in order to respect foreign keys
+      await supabase.from('pedido_itens').delete().neq('id', 'dummy');
+      await supabase.from('pedidos').delete().neq('id', 'dummy');
+      await supabase.from('pastas').delete().neq('id', 'dummy');
 
-      if (response.ok) {
-        const result = await response.json();
-        alert(result.message);
-        fetchStats();
-        fetchDatabaseStats();
-      } else {
-        const error = await response.json();
-        alert(error.error || 'Erro ao excluir dados');
-      }
+      alert('Todos os dados foram excluídos com sucesso!');
+      fetchStats();
+      fetchDatabaseStats();
     } catch (error) {
       console.error('Error clearing all data:', error);
       alert('Erro ao excluir dados');
@@ -202,7 +248,6 @@ export default function Dashboard() {
     <div className="space-y-6">
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Today */}
         <div className="bg-white rounded-xl shadow-lg p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -214,13 +259,10 @@ export default function Dashboard() {
                 {stats.vendasHoje.pedidos} pedido(s)
               </p>
             </div>
-            <div className="p-3 bg-blue-100 rounded-full">
-              <Calendar className="w-6 h-6 text-blue-600" />
-            </div>
+            <Calendar className="w-8 h-8 text-blue-600" />
           </div>
         </div>
 
-        {/* This Week */}
         <div className="bg-white rounded-xl shadow-lg p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -232,13 +274,10 @@ export default function Dashboard() {
                 {stats.vendasSemana.pedidos} pedido(s)
               </p>
             </div>
-            <div className="p-3 bg-green-100 rounded-full">
-              <TrendingUp className="w-6 h-6 text-green-600" />
-            </div>
+            <TrendingUp className="w-8 h-8 text-green-600" />
           </div>
         </div>
 
-        {/* This Month */}
         <div className="bg-white rounded-xl shadow-lg p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -250,9 +289,7 @@ export default function Dashboard() {
                 {stats.vendasMes.pedidos} pedido(s)
               </p>
             </div>
-            <div className="p-3 bg-purple-100 rounded-full">
-              <DollarSign className="w-6 h-6 text-purple-600" />
-            </div>
+            <DollarSign className="w-8 h-8 text-purple-600" />
           </div>
         </div>
       </div>
@@ -260,12 +297,9 @@ export default function Dashboard() {
       {/* Recent Orders */}
       <div className="bg-white rounded-xl shadow-lg">
         <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Pedidos Recentes
-            </h3>
-            <ShoppingBag className="w-5 h-5 text-gray-400" />
-          </div>
+          <h3 className="text-lg font-semibold text-gray-900">
+            Pedidos Recentes
+          </h3>
         </div>
         
         <div className="p-6">
@@ -281,7 +315,7 @@ export default function Dashboard() {
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center">
                       <span className="text-sm font-bold text-purple-600">
-                        #{pedido.id}
+                        #{pedido.id.slice(0, 6)}
                       </span>
                     </div>
                     <div>
@@ -294,14 +328,9 @@ export default function Dashboard() {
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(pedido.status)}`}>
-                      {getStatusLabel(pedido.status)}
-                    </span>
-                    <p className="font-semibold text-purple-600">
-                      {formatPrice(pedido.total_valor)}
-                    </p>
-                  </div>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(pedido.status)}`}>
+                    {getStatusLabel(pedido.status)}
+                  </span>
                 </div>
               ))}
             </div>
@@ -310,57 +339,25 @@ export default function Dashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl shadow-lg p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Ações Rápidas</h3>
-              <p className="text-purple-100 mb-4">
-                Acesse rapidamente as funcionalidades principais
-              </p>
-              <div className="space-y-2">
-                <button 
-                  onClick={() => window.location.hash = '#pastas'}
-                  className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                >
-                  Nova Pasta
-                </button>
-                <button 
-                  onClick={() => window.location.hash = '#pedidos'}
-                  className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm font-medium transition-colors ml-2"
-                >
-                  Ver Pedidos
-                </button>
-              </div>
-            </div>
-            <Users className="w-12 h-12 text-purple-200" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Status do Sistema
-              </h3>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                  <span className="text-sm text-gray-600">API funcionando</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                  <span className="text-sm text-gray-600">Banco de dados OK</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-blue-500" />
-                  <span className="text-sm text-gray-600">Último backup: hoje</span>
-                </div>
-              </div>
-            </div>
-            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-green-600" />
-            </div>
+          <h3 className="text-lg font-semibold mb-2">Ações Rápidas</h3>
+          <p className="text-purple-100 mb-4">
+            Acesse rapidamente as funcionalidades principais
+          </p>
+          <div className="space-x-2">
+            <button 
+              onClick={() => window.location.hash = '#pastas'}
+              className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              Nova Pasta
+            </button>
+            <button 
+              onClick={() => window.location.hash = '#pedidos'}
+              className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              Ver Pedidos
+            </button>
           </div>
         </div>
 
@@ -371,11 +368,10 @@ export default function Dashboard() {
                 <Database className="w-5 h-5 text-red-500" />
                 Banco de Dados
               </h3>
-              {dbStats && (
+              {databaseStats && (
                 <div className="space-y-1 text-sm text-gray-600 mb-3">
-                  <div>Pastas: {dbStats.pastas} ({dbStats.pastas_em_uso} em uso)</div>
-                  <div>Pedidos: {dbStats.pedidos}</div>
-                  <div>Itens: {dbStats.pedido_itens}</div>
+                  <div>Pastas: {databaseStats.totalPastas}</div>
+                  <div>Pedidos: {databaseStats.totalPedidos}</div>
                 </div>
               )}
               <button
@@ -386,9 +382,7 @@ export default function Dashboard() {
                 Gerenciar
               </button>
             </div>
-            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-              <AlertTriangle className="w-6 h-6 text-red-600" />
-            </div>
+            <AlertTriangle className="w-8 h-8 text-red-600" />
           </div>
         </div>
       </div>
@@ -401,8 +395,7 @@ export default function Dashboard() {
             
             <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                  <Database className="w-6 h-6 text-red-500" />
+                <h3 className="text-xl font-semibold text-gray-900">
                   Gerenciar Banco de Dados
                 </h3>
                 <button
@@ -419,68 +412,30 @@ export default function Dashboard() {
                   <h4 className="font-semibold text-red-800">Área de Perigo</h4>
                 </div>
                 <p className="text-sm text-red-700">
-                  As ações abaixo são permanentes e não podem ser desfeitas. Use com extrema cautela.
+                  As ações abaixo são permanentes e não podem ser desfeitas.
                 </p>
               </div>
-
-              {dbStats && (
-                <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                  <h4 className="font-semibold text-gray-900 mb-3">Estatísticas Atuais</h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-600">Pastas:</span>
-                      <p className="font-medium">{dbStats.pastas}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Em uso:</span>
-                      <p className="font-medium">{dbStats.pastas_em_uso}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Pedidos:</span>
-                      <p className="font-medium">{dbStats.pedidos}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Itens:</span>
-                      <p className="font-medium">{dbStats.pedido_itens}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               <div className="space-y-3">
                 <button
                   onClick={clearPastas}
-                  className="w-full p-3 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                  className="w-full p-3 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 rounded-lg font-medium transition-colors"
                 >
-                  <Trash2 className="w-4 h-4" />
-                  Excluir Pastas Não Utilizadas
+                  Excluir Todas as Pastas
                 </button>
 
                 <button
                   onClick={clearPedidos}
-                  className="w-full p-3 bg-orange-100 hover:bg-orange-200 text-orange-800 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                  className="w-full p-3 bg-orange-100 hover:bg-orange-200 text-orange-800 rounded-lg font-medium transition-colors"
                 >
-                  <Trash2 className="w-4 h-4" />
                   Excluir Todos os Pedidos
                 </button>
 
                 <button
                   onClick={clearAllData}
-                  className="w-full p-3 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                  className="w-full p-3 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg font-medium transition-colors"
                 >
-                  <Trash2 className="w-4 h-4" />
                   Excluir Todos os Dados
-                </button>
-
-                <button
-                  onClick={() => {
-                    fetchDatabaseStats();
-                    alert('Estatísticas atualizadas!');
-                  }}
-                  className="w-full p-3 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-                >
-                  <Database className="w-4 h-4" />
-                  Atualizar Estatísticas
                 </button>
               </div>
 
