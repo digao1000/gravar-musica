@@ -134,20 +134,25 @@ export default function PastasManager() {
       const formDataUpload = new FormData();
       formDataUpload.append('image', file);
 
-      const response = await fetch('/api/upload/image', {
-        method: 'POST',
-        body: formDataUpload,
-        credentials: 'include' // Include cookies for authentication
-      });
+      // Upload direto para Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `covers/${fileName}`;
 
-      if (response.ok) {
-        const result = await response.json();
-        setFormData(prev => ({ ...prev, capa_url: result.url }));
-        alert('Imagem enviada com sucesso!');
-      } else {
-        const error = await response.json();
-        alert(error.error || 'Erro ao enviar imagem');
+      const { error } = await supabase.storage
+        .from('pastas')
+        .upload(filePath, file);
+
+      if (error) {
+        throw error;
       }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('pastas')
+        .getPublicUrl(filePath);
+
+      setFormData(prev => ({ ...prev, capa_url: publicUrl }));
+      alert('Imagem enviada com sucesso!');
     } catch (error) {
       console.error('Error uploading image:', error);
       alert('Erro ao enviar imagem');

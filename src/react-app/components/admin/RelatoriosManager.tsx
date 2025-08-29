@@ -195,16 +195,62 @@ export default function RelatoriosManager() {
 
   const imprimirRelatorio = async () => {
     try {
-      const params = new URLSearchParams();
-      params.append('dataInicio', filtros.dataInicio);
-      params.append('dataFim', filtros.dataFim);
-      if (filtros.status) params.append('status', filtros.status);
-      if (filtros.formaPagamento) params.append('formaPagamento', filtros.formaPagamento);
+      // Gerar relatório no cliente e imprimir
+      if (!dados) {
+        alert('Gere um relatório primeiro antes de imprimir');
+        return;
+      }
 
-      const url = `/api/admin/relatorios/print?${params}`;
-      const printWindow = window.open(url, '_blank');
-      
+      const printContent = `
+        <html>
+          <head>
+            <title>Relatório MusicaDrive</title>
+            <style>
+              body { font-family: monospace; font-size: 12px; margin: 0; padding: 10px; }
+              .header { text-align: center; margin-bottom: 20px; }
+              .section { margin-bottom: 15px; }
+              .total { font-weight: bold; border-top: 1px solid #000; padding-top: 5px; }
+              table { width: 100%; border-collapse: collapse; }
+              th, td { border: 1px solid #000; padding: 3px; text-align: left; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h2>MusicaDrive - Relatório</h2>
+              <p>Período: ${filtros.dataInicio} a ${filtros.dataFim}</p>
+            </div>
+            
+            <div class="section">
+              <h3>Resumo</h3>
+              <p>Total de Pedidos: ${dados.resumo.totalPedidos}</p>
+              <p>Total de Valor: R$ ${dados.resumo.totalValor.toFixed(2)}</p>
+              <p>Total de Itens: ${dados.resumo.totalItens}</p>
+              <p>Total de Músicas: ${dados.resumo.totalMusicas}</p>
+            </div>
+            
+            <div class="section">
+              <h3>Pedidos</h3>
+              <table>
+                <tr><th>ID</th><th>Cliente</th><th>Status</th><th>Valor</th><th>Data</th></tr>
+                ${dados.pedidos.map(p => `
+                  <tr>
+                    <td>${p.id}</td>
+                    <td>${p.cliente_nome}</td>
+                    <td>${p.status}</td>
+                    <td>R$ ${p.total_valor.toFixed(2)}</td>
+                    <td>${new Date(p.created_at).toLocaleDateString('pt-BR')}</td>
+                  </tr>
+                `).join('')}
+              </table>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const printWindow = window.open('', '_blank');
       if (printWindow) {
+        printWindow.document.write(printContent);
+        printWindow.document.close();
         printWindow.onload = () => {
           printWindow.print();
         };
