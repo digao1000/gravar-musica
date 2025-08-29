@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Calendar, Download, TrendingUp, DollarSign, ShoppingBag, Users, Filter, FileText, BarChart3, ArrowUpDown, Printer } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, LineChart, Line } from 'recharts';
 
@@ -67,21 +68,85 @@ export default function RelatoriosManager() {
   const buscarDados = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      params.append('dataInicio', filtros.dataInicio);
-      params.append('dataFim', filtros.dataFim);
-      if (filtros.status) params.append('status', filtros.status);
-      if (filtros.formaPagamento) params.append('formaPagamento', filtros.formaPagamento);
-
-      const response = await fetch(`/api/admin/relatorios?${params}`);
-      if (response.ok) {
-        const data = await response.json();
-        setDados(data);
-      } else {
-        const errorText = await response.text();
-        console.error('Erro ao buscar dados:', response.status, errorText);
-        alert(`Erro ao carregar relatório: ${response.status} - ${errorText}`);
+      // Busca pedidos via Supabase RPC e agrega no cliente
+      const { data, error } = await supabase.rpc('get_orders_for_staff');
+      if (error) {
+        console.error('Erro RPC get_orders_for_staff:', error);
+        alert('Erro ao carregar dados de pedidos');
+        setLoading(false);
+        return;
       }
+
+      const inicio = new Date(filtros.dataInicio + 'T00:00:00');
+      const fim = new Date(filtros.dataFim + 'T23:59:59');
+
+      const pedidos = (data || []).filter((p: any) => {
+        const d = new Date(p.created_at);
+        const byDate = d >= inicio && d <= fim;
+        const byStatus = filtros.status ? p.status === filtros.status : true;
+        const byPay = filtros.formaPagamento ? p.forma_pagamento === filtros.formaPagamento : true;
+        return byDate && byStatus && byPay;
+      });
+
+      // Agregações
+      const resumo = pedidos.reduce(
+        (acc: any, p: any) => {
+          acc.totalPedidos += 1;
+          acc.totalValor += p.total_valor || 0;
+          acc.totalItens += p.total_itens || 0;
+          acc.totalMusicas += p.total_musicas || 0;
+          return acc;
+        },
+        { totalPedidos: 0, totalValor: 0, totalItens: 0, totalMusicas: 0, ticketMedio: 0 }
+      );
+      resumo.ticketMedio = resumo.totalPedidos > 0 ? resumo.totalValor / resumo.totalPedidos : 0;
+
+      const toDateKey = (iso: string) => new Date(iso).toISOString().slice(0, 10);
+
+      const mapaDia: Record<string, { data: string; pedidos: number; valor: number }> = {};
+      const mapaStatus: Record<string, { status: string; pedidos: number; valor: number }> = {};
+      const mapaPagamento: Record<string, { forma: string; pedidos: number; valor: number }> = {};
+
+      for (const p of pedidos) {
+        const key = toDateKey(p.created_at);
+        mapaDia[key] ||= { data: key, pedidos: 0, valor: 0 };
+        mapaDia[key].pedidos += 1;
+        mapaDia[key].valor += p.total_valor || 0;
+
+        const st = p.status || 'DESCONHECIDO';
+        mapaStatus[st] ||= { status: st, pedidos: 0, valor: 0 };
+        mapaStatus[st].pedidos += 1;
+        mapaStatus[st].valor += p.total_valor || 0;
+
+        const pay = p.forma_pagamento || 'N/A';
+        mapaPagamento[pay] ||= { forma: pay, pedidos: 0, valor: 0 };
+        mapaPagamento[pay].pedidos += 1;
+        mapaPagamento[pay].valor += p.total_valor || 0;
+      }
+
+      const vendasPorDia = Object.values(mapaDia).sort((a, b) => a.data.localeCompare(b.data));
+      const vendasPorStatus = Object.values(mapaStatus);
+      const vendasPorPagamento = Object.values(mapaPagamento);
+
+      // Top pastas indisponível sem join; placeholder vazio
+      const topPastas: RelatorioData['topPastas'] = [];
+
+      setDados({
+        resumo,
+        vendasPorDia,
+        vendasPorStatus,
+        vendasPorPagamento,
+        topPastas,
+        pedidos: pedidos.map((p: any) => ({
+          id: p.id,
+          cliente_nome: p.cliente_nome,
+          status: p.status,
+          forma_pagamento: p.forma_pagamento,
+          total_valor: p.total_valor,
+          total_itens: p.total_itens,
+          created_at: p.created_at,
+        })),
+      });
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
       alert('Erro de conexão ao carregar relatório');
@@ -99,15 +164,21 @@ export default function RelatoriosManager() {
 
   const exportarRelatorio = async () => {
     try {
-      const params = new URLSearchParams();
-      params.append('dataInicio', filtros.dataInicio);
-      params.append('dataFim', filtros.dataFim);
-      if (filtros.status) params.append('status', filtros.status);
-      if (filtros.formaPagamento) params.append('formaPagamento', filtros.formaPagamento);
-
-      const response = await fetch(`/api/admin/relatorios/export?${params}`);
-      if (response.ok) {
-        const blob = await response.blob();
+      if (!dados) return;
+      const rows = [
+        ['ID', 'Cliente', 'Status', 'Pagamento', 'Total (BRL)', 'Itens', 'Criado em'],
+        ...dados.pedidos.map(p => [
+          p.id,
+          p.cliente_nome,
+          p.status,
+          p.forma_pagamento,
+          String(p.total_valor).replace('.', ','),
+          String(p.total_itens),
+          new Date(p.created_at).toLocaleString('pt-BR'),
+        ])
+      ];
+      const csv = rows.map(r => r.map(v => '"' + String(v).replaceAll('"', '""') + '"').join(';')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -116,7 +187,6 @@ export default function RelatoriosManager() {
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
-      }
     } catch (error) {
       console.error('Erro ao exportar relatório:', error);
       alert('Erro ao exportar relatório');

@@ -130,10 +130,10 @@ export default function Checkout() {
         p_pendrive_gb: state.pendriveSize,
         p_forma_pagamento: formData.forma_pagamento,
         p_observacoes: formData.observacoes.trim() || '',
-        p_itens: JSON.stringify(state.items.map(item => ({
+        p_itens: state.items.map(item => ({
           pasta_id: item.pasta.id,
           quantidade: item.quantidade
-        })))
+        }))
       });
 
       if (error) {

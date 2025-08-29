@@ -3,20 +3,26 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import { mochaPlugins } from "@getmocha/vite-plugins";
-import { componentTagger } from "lovable-tagger";
+// Import opcional do lovable-tagger para evitar hard dependency
+let componentTagger: (() => any) | undefined;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  componentTagger = require("lovable-tagger").componentTagger;
+} catch {}
 
 export default defineConfig(({ mode }) => ({
   base: "/", // 👈 garante que os assets carreguem do domínio raiz
   plugins: [
     ...mochaPlugins(process.env as any),
     react(),
-    cloudflare(),
-    mode === "development" && componentTagger(),
+    mode === "production" && cloudflare(),
+    mode === "development" && componentTagger && componentTagger(),
   ].filter(Boolean),
   server: {
-    host: "::",
-    port: 8080,
+    host: "0.0.0.0",
+    port: 5173,
     allowedHosts: true,
+    strictPort: false,
   },
   build: {
     chunkSizeWarningLimit: 5000,

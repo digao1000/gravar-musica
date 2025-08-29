@@ -15,7 +15,7 @@ export default function PedidosManager() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<PedidoStatus | ''>('');
+  const [statusFilter, setStatusFilter] = useState<PedidoStatus | ''>('ENVIADO');
   
   // Modal states
   const [showDetails, setShowDetails] = useState(false);
@@ -163,8 +163,14 @@ export default function PedidosManager() {
   };
 
   const handlePrint = (pedidoId: string) => {
+    const pedido = pedidos.find(p => p.id === pedidoId);
+    if (pedido) {
+      try {
+        sessionStorage.setItem(`pedido_print_${pedidoId}`, JSON.stringify(pedido));
+      } catch {}
+    }
     const url = `/admin/pedidos/${pedidoId}/print`;
-    window.open(url, '_blank');
+    window.location.assign(url);
   };
 
   const handleEdit = (pedido: Pedido) => {

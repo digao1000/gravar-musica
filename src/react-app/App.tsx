@@ -5,6 +5,7 @@ import Login from "@/react-app/pages/Login";
 import AuthCallback from "@/react-app/pages/AuthCallback";
 import Admin from "@/react-app/pages/Admin";
 import Checkout from "@/react-app/pages/Checkout";
+import PedidoPrint from "@/react-app/pages/PedidoPrint";
 import ProtectedRoute from "@/react-app/components/ProtectedRoute";
 import { CartProvider } from "@/react-app/hooks/useCart";
 
@@ -23,6 +24,7 @@ export default function App() {
                 <Admin />
               </ProtectedRoute>
             } />
+            <Route path="/admin/pedidos/:id/print" element={<PedidoPrint />} />
           </Routes>
         </Router>
       </CartProvider>
