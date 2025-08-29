@@ -177,7 +177,7 @@ export default function RelatoriosManager() {
           new Date(p.created_at).toLocaleString('pt-BR'),
         ])
       ];
-      const csv = rows.map(r => r.map(v => '"' + String(v).replaceAll('"', '""') + '"').join(';')).join('\n');
+      const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(';')).join('\n');
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
