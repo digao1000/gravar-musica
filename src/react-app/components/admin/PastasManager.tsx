@@ -131,28 +131,15 @@ export default function PastasManager() {
     setIsUploading(true);
 
     try {
-      const formDataUpload = new FormData();
-      formDataUpload.append('image', file);
-
-      // Upload direto para Supabase Storage
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `covers/${fileName}`;
-
-      const { error } = await supabase.storage
-        .from('pastas')
-        .upload(filePath, file);
-
-      if (error) {
-        throw error;
-      }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('pastas')
-        .getPublicUrl(filePath);
-
-      setFormData(prev => ({ ...prev, capa_url: publicUrl }));
-      alert('Imagem enviada com sucesso!');
+      // Converter arquivo para base64 para armazenar diretamente
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const base64 = e.target?.result as string;
+        setFormData(prev => ({ ...prev, capa_url: base64 }));
+        alert('Imagem carregada com sucesso!');
+        setIsUploading(false);
+      };
+      reader.readAsDataURL(file);
     } catch (error) {
       console.error('Error uploading image:', error);
       alert('Erro ao enviar imagem');
