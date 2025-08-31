@@ -4,11 +4,7 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "installCommand": "npm install --legacy-peer-deps",
-  "functions": {
-    "src/worker/index.ts": {
-      "runtime": "edge"
-    }
-  },
+
   "rewrites": [
     {
       "source": "/(.*)",
