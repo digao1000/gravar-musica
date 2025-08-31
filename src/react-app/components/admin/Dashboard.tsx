@@ -113,10 +113,7 @@ export default function Dashboard() {
     }
 
     try {
-      const { error } = await supabase
-        .from('pastas')
-        .delete()
-        .not('id', 'is', null); // Delete all rows
+      const { error } = await supabase.rpc('admin_clear_pastas');
 
       if (error) {
         alert('Erro ao excluir pastas: ' + error.message);
@@ -136,14 +133,7 @@ export default function Dashboard() {
     }
 
     try {
-      // First delete pedido_itens (due to foreign key constraint)
-      await supabase.from('pedido_itens').delete().not('id', 'is', null);
-      
-      // Then delete pedidos
-      const { error } = await supabase
-        .from('pedidos')
-        .delete()
-        .not('id', 'is', null);
+      const { error } = await supabase.rpc('admin_clear_pedidos');
 
       if (error) {
         alert('Erro ao excluir pedidos: ' + error.message);
@@ -168,14 +158,15 @@ export default function Dashboard() {
     }
 
     try {
-      // Delete in order to respect foreign keys
-      await supabase.from('pedido_itens').delete().not('id', 'is', null);
-      await supabase.from('pedidos').delete().not('id', 'is', null);
-      await supabase.from('pastas').delete().not('id', 'is', null);
+      const { error } = await supabase.rpc('admin_clear_all_data');
 
-      alert('Todos os dados foram excluídos com sucesso!');
-      fetchStats();
-      fetchDatabaseStats();
+      if (error) {
+        alert('Erro ao excluir dados: ' + error.message);
+      } else {
+        alert('Todos os dados foram excluídos com sucesso!');
+        fetchStats();
+        fetchDatabaseStats();
+      }
     } catch (error) {
       console.error('Error clearing all data:', error);
       alert('Erro ao excluir dados');
