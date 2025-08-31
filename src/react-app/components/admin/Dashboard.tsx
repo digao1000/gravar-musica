@@ -116,7 +116,7 @@ export default function Dashboard() {
       const { error } = await supabase
         .from('pastas')
         .delete()
-        .neq('id', 'dummy'); // Delete all rows
+        .not('id', 'is', null); // Delete all rows
 
       if (error) {
         alert('Erro ao excluir pastas: ' + error.message);
@@ -137,13 +137,13 @@ export default function Dashboard() {
 
     try {
       // First delete pedido_itens (due to foreign key constraint)
-      await supabase.from('pedido_itens').delete().neq('id', 'dummy');
+      await supabase.from('pedido_itens').delete().not('id', 'is', null);
       
       // Then delete pedidos
       const { error } = await supabase
         .from('pedidos')
         .delete()
-        .neq('id', 'dummy');
+        .not('id', 'is', null);
 
       if (error) {
         alert('Erro ao excluir pedidos: ' + error.message);
@@ -169,9 +169,9 @@ export default function Dashboard() {
 
     try {
       // Delete in order to respect foreign keys
-      await supabase.from('pedido_itens').delete().neq('id', 'dummy');
-      await supabase.from('pedidos').delete().neq('id', 'dummy');
-      await supabase.from('pastas').delete().neq('id', 'dummy');
+      await supabase.from('pedido_itens').delete().not('id', 'is', null);
+      await supabase.from('pedidos').delete().not('id', 'is', null);
+      await supabase.from('pastas').delete().not('id', 'is', null);
 
       alert('Todos os dados foram excluídos com sucesso!');
       fetchStats();
