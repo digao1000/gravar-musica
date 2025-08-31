@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => ({
   ].filter(Boolean),
   server: {
     host: "0.0.0.0",
-    port: 5173,
+    port: 8080,
     allowedHosts: true,
     strictPort: false,
   },
