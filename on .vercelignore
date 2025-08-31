@@ -1,0 +1,5 @@
+[33m43a8dc0[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Fix Vercel 404: Add vercel.json and redirects
+[33m747f630[m rcp
+[33m965463a[m erro400
+[33m075fbc4[m Fix: Corrigir erros 404 e listener async - migrar para Supabase Storage
+[33ma8bd311[m Fix: Corrigir replaceAll para compatibilidade ES2020
