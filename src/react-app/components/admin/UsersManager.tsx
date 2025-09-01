@@ -44,10 +44,16 @@ export default function UsersManager() {
 
       if (error) throw error;
 
-      // Garantir que o tipo role seja correto
+      // Garantir que o tipo role seja correto e converter null para undefined
       const typedUsers: AppUser[] = (data || []).map(user => ({
-        ...user,
-        role: user.role as 'ADMIN' | 'FUNCIONARIO'
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role as 'ADMIN' | 'FUNCIONARIO',
+        is_active: user.is_active,
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+        last_login_at: user.last_login_at === null ? undefined : user.last_login_at
       }));
 
       setUsers(typedUsers);

@@ -240,7 +240,7 @@ export default function Dashboard() {
       console.error('Erro na exclusão normal de pastas e pedidos:', error);
       // Fallback via RPC administrativa (exclui todos os dados exceto usuários)
       try {
-        const { error: rpcError } = await supabase.rpc('clear_all_data_admin');
+        const { error: rpcError } = await supabase.rpc('clear_all_data_admin' as any);
         if (rpcError) throw rpcError;
         alert('Pastas e pedidos excluídos via RPC com sucesso (exceto usuários).');
         fetchStats();
@@ -328,7 +328,7 @@ export default function Dashboard() {
       try {
         console.log('Tentativa 2: Usando função RPC para exclusão...');
 
-        const { error: rpcError } = await supabase.rpc('clear_all_data_admin');
+        const { error: rpcError } = await supabase.rpc('clear_all_data_admin' as any);
 
         if (rpcError) {
           throw rpcError;
