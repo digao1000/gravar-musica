@@ -33,55 +33,48 @@ export default function Dashboard() {
 
   const fetchStats = async () => {
     try {
-      // Fetch basic stats from Supabase
-      const today = new Date().toISOString().split('T')[0];
-      const startOfWeek = new Date();
+      // Buscar pedidos via RPC segura (evita bloqueios de RLS)
+      const { data: ordersData, error } = await supabase.rpc('get_orders_for_staff');
+      if (error) throw error;
+
+      const orders = ordersData || [];
+
+      // Datas de referência (início do dia/semana/mês)
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startOfWeek = new Date(startOfToday);
       startOfWeek.setDate(startOfWeek.getDate() - 7);
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-      // Get today's orders
-      const { data: todayOrders } = await supabase
-        .from('pedidos')
-        .select('total_valor')
-        .gte('created_at', today);
+      // Função auxiliar para converter created_at
+      const toDate = (d: string) => new Date(d);
 
-      // Get week's orders
-      const { data: weekOrders } = await supabase
-        .from('pedidos')
-        .select('total_valor')
-        .gte('created_at', startOfWeek.toISOString());
+      // Filtragens
+      const todayOrders = orders.filter(o => toDate(o.created_at) >= startOfToday);
+      const weekOrders = orders.filter(o => toDate(o.created_at) >= startOfWeek);
+      const monthOrders = orders.filter(o => toDate(o.created_at) >= startOfMonth);
 
-      // Get month's orders
-      const { data: monthOrders } = await supabase
-        .from('pedidos')
-        .select('total_valor, created_at, cliente_nome, status, id')
-        .gte('created_at', startOfMonth.toISOString())
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      const stats: DashboardStats = {
-        vendasHoje: {
-          pedidos: todayOrders?.length || 0,
-          valor: todayOrders?.reduce((sum, order) => sum + order.total_valor, 0) || 0
-        },
-        vendasSemana: {
-          pedidos: weekOrders?.length || 0,
-          valor: weekOrders?.reduce((sum, order) => sum + order.total_valor, 0) || 0
-        },
-        vendasMes: {
-          pedidos: monthOrders?.length || 0,
-          valor: monthOrders?.reduce((sum, order) => sum + order.total_valor, 0) || 0
-        },
-        ultimosPedidos: monthOrders?.map(order => ({
+      // Ordenar por data desc e pegar os 5 mais recentes
+      const ultimosPedidos = [...monthOrders]
+        .sort((a, b) => toDate(b.created_at).getTime() - toDate(a.created_at).getTime())
+        .slice(0, 5)
+        .map(order => ({
           id: order.id,
           cliente_nome: order.cliente_nome,
           status: order.status,
           created_at: order.created_at
-        })) || []
+        }));
+
+      const sum = (arr: any[]) => arr.reduce((acc, cur) => acc + (cur.total_valor || 0), 0);
+
+      const newStats: DashboardStats = {
+        vendasHoje: { pedidos: todayOrders.length, valor: sum(todayOrders) },
+        vendasSemana: { pedidos: weekOrders.length, valor: sum(weekOrders) },
+        vendasMes: { pedidos: monthOrders.length, valor: sum(monthOrders) },
+        ultimosPedidos
       };
 
-      setStats(stats);
+      setStats(newStats);
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
     } finally {
@@ -113,15 +106,28 @@ export default function Dashboard() {
     }
 
     try {
-      const { error } = await supabase
+      // Verifica quantas pastas existem antes
+      const { count: beforeCount, error: countError } = await supabase
+        .from('pastas')
+        .select('id', { count: 'exact', head: true });
+
+      if (countError) throw countError;
+
+      const { data, error } = await supabase
         .from('pastas')
         .delete()
-        .neq('id', 'dummy'); // Delete all rows
+        .not('id', 'is', null)
+        .select('id'); // retorna linhas afetadas
 
       if (error) {
         alert('Erro ao excluir pastas: ' + error.message);
       } else {
-        alert('Pastas excluídas com sucesso!');
+        const deleted = data?.length || 0;
+        if ((beforeCount || 0) > 0 && deleted === 0) {
+          alert('Nenhuma pasta pôde ser excluída devido a permissões (RLS). Tente usar "Excluir Todos os Dados" para executar via RPC administrativa.');
+        } else {
+          alert(`Pastas excluídas: ${deleted}`);
+        }
         fetchDatabaseStats();
       }
     } catch (error) {
@@ -136,25 +142,113 @@ export default function Dashboard() {
     }
 
     try {
-      // First delete pedido_itens (due to foreign key constraint)
-      await supabase.from('pedido_itens').delete().neq('id', 'dummy');
-      
-      // Then delete pedidos
-      const { error } = await supabase
+      // Contagem antes
+      const [{ count: itensBefore }, { count: pedidosBefore }] = await Promise.all([
+        supabase.from('pedido_itens').select('id', { count: 'exact', head: true }),
+        supabase.from('pedidos').select('id', { count: 'exact', head: true })
+      ]).then((r: any) => r.map((x: any) => ({ count: x.count })));
+
+      // Excluir itens primeiro
+      const { data: itensDeleted, error: itemsError } = await supabase
+        .from('pedido_itens')
+        .delete()
+        .not('id', 'is', null)
+        .select('id');
+      if (itemsError) throw itemsError;
+
+      // Excluir pedidos
+      const { data: pedidosDeleted, error: pedidosError } = await supabase
         .from('pedidos')
         .delete()
-        .neq('id', 'dummy');
+        .not('id', 'is', null)
+        .select('id');
+      if (pedidosError) throw pedidosError;
 
-      if (error) {
-        alert('Erro ao excluir pedidos: ' + error.message);
+      const itensDelCount = itensDeleted?.length || 0;
+      const pedidosDelCount = pedidosDeleted?.length || 0;
+
+      if ((itensBefore || 0) > 0 && itensDelCount === 0) {
+        alert('Nenhum item de pedido pôde ser excluído (possível RLS). Use "Excluir Todos os Dados" para executar via RPC.');
+      } else if ((pedidosBefore || 0) > 0 && pedidosDelCount === 0) {
+        alert('Nenhum pedido pôde ser excluído (possível RLS). Use "Excluir Todos os Dados" para executar via RPC.');
       } else {
-        alert('Pedidos excluídos com sucesso!');
-        fetchStats();
-        fetchDatabaseStats();
+        alert(`Pedidos excluídos: ${pedidosDelCount} (itens de pedido: ${itensDelCount})`);
       }
+
+      fetchStats();
+      fetchDatabaseStats();
     } catch (error) {
       console.error('Error clearing pedidos:', error);
       alert('Erro ao excluir pedidos');
+    }
+  };
+
+  const clearPastasEPedidos = async () => {
+    if (!confirm('ATENÇÃO: Isso excluirá TODAS as pastas e TODOS os pedidos permanentemente. Esta ação não pode ser desfeita. Continuar?')) {
+      return;
+    }
+    if (!confirm('Tem certeza? Esta ação apagará pastas, pedidos e itens de pedido! (exceto usuários)')) {
+      return;
+    }
+
+    try {
+      // Contagens antes para detectar bloqueio por RLS
+      const [itensBeforeRes, pedidosBeforeRes, pastasBeforeRes] = await Promise.all([
+        supabase.from('pedido_itens').select('id', { count: 'exact', head: true }),
+        supabase.from('pedidos').select('id', { count: 'exact', head: true }),
+        supabase.from('pastas').select('id', { count: 'exact', head: true })
+      ]);
+      const itensBefore = itensBeforeRes.count || 0;
+      const pedidosBefore = pedidosBeforeRes.count || 0;
+      const pastasBefore = pastasBeforeRes.count || 0;
+
+      // Excluir em ordem: itens -> pedidos -> pastas
+      const { data: itensDeleted, error: itemsError } = await supabase
+        .from('pedido_itens')
+        .delete()
+        .not('id', 'is', null)
+        .select('id');
+      if (itemsError) throw itemsError;
+
+      const { data: pedidosDeleted, error: pedidosError } = await supabase
+        .from('pedidos')
+        .delete()
+        .not('id', 'is', null)
+        .select('id');
+      if (pedidosError) throw pedidosError;
+
+      const { data: pastasDeleted, error: pastasError } = await supabase
+        .from('pastas')
+        .delete()
+        .not('id', 'is', null)
+        .select('id');
+      if (pastasError) throw pastasError;
+
+      const itensCount = itensDeleted?.length || 0;
+      const pedidosCount = pedidosDeleted?.length || 0;
+      const pastasCount = pastasDeleted?.length || 0;
+
+      const rlsBlocked = (itensBefore > 0 && itensCount === 0) || (pedidosBefore > 0 && pedidosCount === 0) || (pastasBefore > 0 && pastasCount === 0);
+      if (rlsBlocked) {
+        throw new Error('RLS pode estar bloqueando a exclusão');
+      }
+
+      alert(`Pastas e pedidos excluídos com sucesso!\nItens: ${itensCount}, Pedidos: ${pedidosCount}, Pastas: ${pastasCount}`);
+      fetchStats();
+      fetchDatabaseStats();
+    } catch (error: any) {
+      console.error('Erro na exclusão normal de pastas e pedidos:', error);
+      // Fallback via RPC administrativa (exclui todos os dados exceto usuários)
+      try {
+        const { error: rpcError } = await supabase.rpc('clear_all_data_admin');
+        if (rpcError) throw rpcError;
+        alert('Pastas e pedidos excluídos via RPC com sucesso (exceto usuários).');
+        fetchStats();
+        fetchDatabaseStats();
+      } catch (rpcError: any) {
+        console.error('Erro na exclusão via RPC (pastas/pedidos):', rpcError);
+        alert(`Erro ao excluir via RPC: ${rpcError.message || rpcError}.\nVerifique se está logado como ADMIN e se a função clear_all_data_admin existe.`);
+      }
     }
   };
 
@@ -163,22 +257,91 @@ export default function Dashboard() {
       return;
     }
 
-    if (!confirm('Tem ABSOLUTA certeza? Esta ação apagará todo o banco de dados!')) {
+    if (!confirm('Tem ABSOLUTA certeza? Esta ação apagará todo o banco de dados! (exceto usuários)')) {
       return;
     }
 
     try {
-      // Delete in order to respect foreign keys
-      await supabase.from('pedido_itens').delete().neq('id', 'dummy');
-      await supabase.from('pedidos').delete().neq('id', 'dummy');
-      await supabase.from('pastas').delete().neq('id', 'dummy');
+      console.log('Iniciando exclusão de todos os dados...');
 
-      alert('Todos os dados foram excluídos com sucesso!');
+      // Obter contagens antes para detectar bloqueio por RLS
+      const [itensBeforeRes, pedidosBeforeRes, pastasBeforeRes] = await Promise.all([
+        supabase.from('pedido_itens').select('id', { count: 'exact', head: true }),
+        supabase.from('pedidos').select('id', { count: 'exact', head: true }),
+        supabase.from('pastas').select('id', { count: 'exact', head: true })
+      ]);
+
+      const itensBefore = itensBeforeRes.count || 0;
+      const pedidosBefore = pedidosBeforeRes.count || 0;
+      const pastasBefore = pastasBeforeRes.count || 0;
+
+      // Método 1: Tentar exclusão normal primeiro
+      console.log('Tentativa 1: Exclusão com políticas RLS...');
+
+      // Delete pedido_itens first (foreign key dependency)
+      console.log('Excluindo pedido_itens...');
+      const { data: itensDeleted, error: itemsError } = await supabase
+        .from('pedido_itens')
+        .delete()
+        .not('id', 'is', null)
+        .select('id');
+      if (itemsError) throw itemsError;
+      const itemsCount = itensDeleted?.length || 0;
+      console.log(`${itemsCount} itens de pedido excluídos`);
+
+      // Delete pedidos
+      console.log('Excluindo pedidos...');
+      const { data: pedidosDeleted, error: pedidosError } = await supabase
+        .from('pedidos')
+        .delete()
+        .not('id', 'is', null)
+        .select('id');
+      if (pedidosError) throw pedidosError;
+      const pedidosCount = pedidosDeleted?.length || 0;
+      console.log(`${pedidosCount} pedidos excluídos`);
+
+      // Delete pastas
+      console.log('Excluindo pastas...');
+      const { data: pastasDeleted, error: pastasError } = await supabase
+        .from('pastas')
+        .delete()
+        .not('id', 'is', null)
+        .select('id');
+      if (pastasError) throw pastasError;
+      const pastasCount = pastasDeleted?.length || 0;
+      console.log(`${pastasCount} pastas excluídas`);
+
+      // Se havia dados e nada foi excluído em alguma tabela, presume RLS bloqueando
+      const rlsBlocked = (itensBefore > 0 && itemsCount === 0) || (pedidosBefore > 0 && pedidosCount === 0) || (pastasBefore > 0 && pastasCount === 0);
+      if (rlsBlocked) {
+        throw new Error('RLS pode estar bloqueando a exclusão');
+      }
+
+      console.log('Todos os dados foram excluídos com sucesso!');
+      alert(`Todos os dados foram excluídos com sucesso!\nItens: ${itemsCount}, Pedidos: ${pedidosCount}, Pastas: ${pastasCount}`);
       fetchStats();
       fetchDatabaseStats();
-    } catch (error) {
-      console.error('Error clearing all data:', error);
-      alert('Erro ao excluir dados');
+    } catch (error: any) {
+      console.error('Erro na exclusão normal:', error);
+
+      // Método 2: Tentar com função RPC se a exclusão normal falhar
+      try {
+        console.log('Tentativa 2: Usando função RPC para exclusão...');
+
+        const { error: rpcError } = await supabase.rpc('clear_all_data_admin');
+
+        if (rpcError) {
+          throw rpcError;
+        }
+
+        console.log('Dados excluídos via RPC com sucesso!');
+        alert('Todos os dados foram excluídos com sucesso via RPC (exceto usuários).');
+        fetchStats();
+        fetchDatabaseStats();
+      } catch (rpcError: any) {
+        console.error('Erro na exclusão via RPC:', rpcError);
+        alert(`Erro ao excluir dados: ${rpcError.message || rpcError}.\n\nVerifique se você está logado como ADMIN e se a função clear_all_data_admin foi criada (fix_delete_permissions.sql).`);
+      }
     }
   };
 
@@ -429,6 +592,13 @@ export default function Dashboard() {
                   className="w-full p-3 bg-orange-100 hover:bg-orange-200 text-orange-800 rounded-lg font-medium transition-colors"
                 >
                   Excluir Todos os Pedidos
+                </button>
+
+                <button
+                  onClick={clearPastasEPedidos}
+                  className="w-full p-3 bg-pink-100 hover:bg-pink-200 text-pink-800 rounded-lg font-medium transition-colors"
+                >
+                  Excluir Pastas e Pedidos
                 </button>
 
                 <button

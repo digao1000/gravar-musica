@@ -362,7 +362,8 @@ export default function RelatoriosManager() {
             </select>
           </div>
           
-          <div className="flex items-end gap-2">
+          {/* Botões - Layout Responsivo */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2">
             <button
               onClick={buscarDados}
               disabled={loading}
@@ -375,22 +376,22 @@ export default function RelatoriosManager() {
                 </>
               )}
             </button>
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full sm:w-auto">
               <button
                 onClick={exportarRelatorio}
                 disabled={loading || !dados}
-                className="bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
               >
                 <Download className="w-4 h-4" />
-                CSV
+                <span className="hidden xs:inline">CSV</span>
               </button>
               <button
                 onClick={imprimirRelatorio}
                 disabled={loading || !dados}
-                className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
               >
                 <Printer className="w-4 h-4" />
-                80mm
+                <span className="hidden xs:inline">80mm</span>
               </button>
             </div>
           </div>

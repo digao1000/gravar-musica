@@ -80,6 +80,43 @@ export default function PastasManager() {
     }
     return `${sizeGB.toFixed(2)} GB`;
   };
+  
+  const DEFAULT_CODE_PREFIX = 'MUS';
+  const CODE_PAD_LENGTH = 4;
+
+  const generateNextCodigo = async (prefix: string = DEFAULT_CODE_PREFIX): Promise<string> => {
+    try {
+      const { data, error } = await supabase
+        .from('pastas')
+        .select('codigo')
+        .not('codigo', 'is', null)
+        .limit(1000);
+
+      if (error) {
+        console.warn('Não foi possível buscar códigos existentes. Gerando padrão.', error);
+      }
+
+      let maxNum = 0;
+      (data || []).forEach((row: { codigo: string | null }) => {
+        const code = (row.codigo || '').toString();
+        if (code.startsWith(prefix)) {
+          const match = code.match(/(\d+)$/);
+          if (match) {
+            const n = parseInt(match[1], 10);
+            if (!isNaN(n)) {
+              maxNum = Math.max(maxNum, n);
+            }
+          }
+        }
+      });
+
+      const next = maxNum + 1;
+      return `${prefix}${String(next).padStart(CODE_PAD_LENGTH, '0')}`;
+    } catch (e) {
+      console.warn('Falha ao gerar código automaticamente. Usando fallback MUS0001.', e);
+      return `${prefix}${String(1).padStart(CODE_PAD_LENGTH, '0')}`;
+    }
+  };
 
   const resetForm = () => {
     setFormData({
@@ -199,10 +236,16 @@ export default function PastasManager() {
     }
     
     try {
+      // Gerar código automaticamente se for um novo cadastro e o campo estiver vazio
+      let codigoToUse = formData.codigo?.trim() || '';
+      if (!editingPasta && !codigoToUse) {
+        codigoToUse = await generateNextCodigo();
+      }
+
       // Clean data before sending
       const cleanedData = {
         nome: formData.nome.trim(),
-        codigo: formData.codigo?.trim() || null,
+        codigo: codigoToUse || null,
         descricao: formData.descricao?.trim() || null,
         genero: formData.genero?.trim() || null,
         capa_url: formData.capa_url?.trim() || null,
@@ -597,25 +640,28 @@ export default function PastasManager() {
                   {pasta.genero && <span>{pasta.genero}</span>}
                 </div>
 
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <span className="text-xl font-bold text-purple-600">
                     {formatPrice(pasta.preco)}
                   </span>
                   
-                  <div className="flex items-center gap-2">
+                  {/* Botões de Ação - Layout Responsivo */}
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
                     <button
                       onClick={() => handleEdit(pasta)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Editar"
+                      className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+                      title="Editar pasta"
                     >
                       <Edit className="w-4 h-4" />
+                      <span className="text-sm">Editar</span>
                     </button>
                     <button
                       onClick={() => handleDelete(pasta)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Deletar"
+                      className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+                      title="Deletar pasta"
                     >
                       <Trash2 className="w-4 h-4" />
+                      <span className="text-sm">Deletar</span>
                     </button>
                   </div>
                 </div>

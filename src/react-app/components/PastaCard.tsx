@@ -81,10 +81,10 @@ export default function PastaCard({ pasta }: PastaCardProps) {
           
           <button
             onClick={() => addItem(pasta)}
-            className="bg-gradient-primary hover:opacity-90 text-primary-foreground px-4 py-2 rounded-lg flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl"
+            className="bg-gradient-primary hover:opacity-90 text-primary-foreground px-3 sm:px-4 py-2 rounded-lg flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl"
           >
             <ShoppingCart className="w-4 h-4" />
-            Adicionar
+            <span className="hidden xs:inline">Adicionar</span>
           </button>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Eye, Edit, Trash2, CheckCircle, Clock, Package, Truck, X, Printer } from 'lucide-react';
+import { Search, Eye, Edit, Trash2, CheckCircle, Clock, Package, Truck, X, Printer, Plus } from 'lucide-react';
 import { Pedido, PedidoStatus, Pasta } from '@/shared/types';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -31,9 +31,47 @@ export default function PedidosManager() {
     observacoes: ''
   });
 
+  // Edit items state (pastas do pedido)
+  type EditItem = { pasta_id: string; nome_pasta: string; qtd_musicas: number; tamanho_gb: number; preco_unit: number };
+  const [originalEditItems, setOriginalEditItems] = useState<EditItem[]>([]);
+  const [currentEditItems, setCurrentEditItems] = useState<EditItem[]>([]);
+  const [allPastas, setAllPastas] = useState<Pasta[]>([]);
+  const [newPastaIdForAdd, setNewPastaIdForAdd] = useState<string>('');
+
   useEffect(() => {
     fetchPedidos();
   }, [statusFilter]);
+
+  // Carregar itens e lista de pastas quando abrir modal de edição
+  useEffect(() => {
+    const loadEditData = async () => {
+      if (!showEdit || !editingPedido) return;
+      // Buscar itens atuais do pedido (snapshot)
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('pedido_itens')
+        .select('pasta_id, nome_pasta, qtd_musicas, tamanho_gb, preco_unit')
+        .eq('pedido_id', editingPedido.id);
+      if (!itemsError && itemsData) {
+        const mapped: EditItem[] = itemsData.map((i: any) => ({
+          pasta_id: i.pasta_id,
+          nome_pasta: i.nome_pasta,
+          qtd_musicas: i.qtd_musicas,
+          tamanho_gb: i.tamanho_gb,
+          preco_unit: i.preco_unit,
+        }));
+        setOriginalEditItems(mapped);
+        setCurrentEditItems(mapped);
+      }
+      // Buscar todas as pastas ativas para adicionar
+      const { data: pastasData } = await supabase
+        .from('pastas')
+        .select('*')
+        .eq('is_active', true)
+        .order('nome');
+      setAllPastas(pastasData as Pasta[] || []);
+    };
+    loadEditData();
+  }, [showEdit, editingPedido]);
 
   const fetchPedidos = async () => {
     setLoading(true);
@@ -184,20 +222,95 @@ export default function PedidosManager() {
     setShowEdit(true);
   };
 
+  const handleAddItem = async () => {
+    if (!newPastaIdForAdd) return;
+    const exists = currentEditItems.some(i => i.pasta_id === newPastaIdForAdd);
+    if (exists) {
+      alert('Esta pasta já está no pedido');
+      return;
+    }
+    const pasta = allPastas.find(p => p.id === newPastaIdForAdd);
+    if (!pasta) return;
+    const newItem: EditItem = {
+      pasta_id: pasta.id,
+      nome_pasta: pasta.nome,
+      qtd_musicas: pasta.qtd_musicas,
+      tamanho_gb: pasta.tamanho_gb,
+      preco_unit: pasta.preco,
+    };
+    setCurrentEditItems(prev => [...prev, newItem]);
+    setNewPastaIdForAdd('');
+  };
+
+  const handleRemoveItem = (pasta_id: string) => {
+    setCurrentEditItems(prev => prev.filter(i => i.pasta_id !== pasta_id));
+  };
+
   const handleSaveEdit = async () => {
     if (!editingPedido) return;
 
     try {
-      const { error } = await supabase
+      // Calcular diffs de itens
+      const originalIds = new Set(originalEditItems.map(i => i.pasta_id));
+      const currentIds = new Set(currentEditItems.map(i => i.pasta_id));
+
+      const toInsert = currentEditItems.filter(i => !originalIds.has(i.pasta_id));
+      const toRemoveIds = originalEditItems.filter(i => !currentIds.has(i.pasta_id)).map(i => i.pasta_id);
+
+      // Inserir novos itens (snapshot)
+      if (toInsert.length > 0) {
+        const insertPayload = toInsert.map(i => ({
+          pedido_id: editingPedido.id,
+          pasta_id: i.pasta_id,
+          nome_pasta: i.nome_pasta,
+          qtd_musicas: i.qtd_musicas,
+          tamanho_gb: i.tamanho_gb,
+          preco_unit: i.preco_unit,
+        }));
+        const { error: insertErr } = await supabase
+          .from('pedido_itens')
+          .insert(insertPayload);
+        if (insertErr) throw insertErr;
+      }
+
+      // Remover itens deletados
+      if (toRemoveIds.length > 0) {
+        const { error: delErr } = await supabase
+          .from('pedido_itens')
+          .delete()
+          .eq('pedido_id', editingPedido.id)
+          .in('pasta_id', toRemoveIds);
+        if (delErr) throw delErr;
+      }
+
+      // Recalcular totais com base nos itens atuais
+      const totals = currentEditItems.reduce(
+        (acc, it) => {
+          acc.total_gb += Number(it.tamanho_gb) || 0;
+          acc.total_valor += Number(it.preco_unit) || 0;
+          acc.total_musicas += Number(it.qtd_musicas) || 0;
+          acc.total_itens += 1;
+          return acc;
+        },
+        { total_gb: 0, total_valor: 0, total_musicas: 0, total_itens: 0 }
+      );
+
+      // Atualizar dados do pedido (campos editáveis + totais)
+      const { error: updErr } = await supabase
         .from('pedidos')
-        .update(editForm)
+        .update({
+          cliente_nome: editForm.cliente_nome,
+          cliente_contato: editForm.cliente_contato,
+          pendrive_gb: editForm.pendrive_gb,
+          observacoes: editForm.observacoes || null,
+          total_gb: totals.total_gb,
+          total_itens: totals.total_itens,
+          total_musicas: totals.total_musicas,
+          total_valor: totals.total_valor,
+        })
         .eq('id', editingPedido.id);
 
-      if (error) {
-        console.error('Error updating pedido:', error);
-        alert('Erro ao atualizar pedido');
-        return;
-      }
+      if (updErr) throw updErr;
 
       await fetchPedidos();
       setShowEdit(false);
@@ -404,7 +517,8 @@ export default function PedidosManager() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-200">
+              {/* Botões de Ação - Layout Responsivo */}
+              <div className="flex flex-col sm:flex-row items-stretch gap-2 mt-4 pt-4 border-t border-gray-200">
                 <button
                   onClick={() => {
                     fetchPedidoDetails(pedido.id);
@@ -413,29 +527,37 @@ export default function PedidosManager() {
                   className="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg text-sm flex items-center justify-center gap-2 transition-colors"
                 >
                   <Eye className="w-4 h-4" />
-                  Ver
+                  <span>Ver Detalhes</span>
                 </button>
                 
-                <button
-                  onClick={() => handleEdit(pedido)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm flex items-center justify-center gap-2 transition-colors"
-                >
-                  <Edit className="w-4 h-4" />
-                </button>
-                
-                <button
-                  onClick={() => handlePrint(pedido.id)}
-                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm flex items-center justify-center gap-2 transition-colors"
-                >
-                  <Printer className="w-4 h-4" />
-                </button>
-                
-                <button
-                  onClick={() => handleDelete(pedido)}
-                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm flex items-center justify-center gap-2 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEdit(pedido)}
+                    className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm flex items-center justify-center gap-2 transition-colors"
+                    title="Editar pedido"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span className="hidden xs:inline">Editar</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => handlePrint(pedido.id)}
+                    className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm flex items-center justify-center gap-2 transition-colors"
+                    title="Imprimir pedido"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span className="hidden xs:inline">Imprimir</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => handleDelete(pedido)}
+                    className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm flex items-center justify-center gap-2 transition-colors"
+                    title="Excluir pedido"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span className="hidden xs:inline">Excluir</span>
+                  </button>
+                </div>
               </div>
 
               {/* Quick Status Update */}
@@ -610,6 +732,58 @@ export default function PedidosManager() {
                     rows={3}
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
+                </div>
+
+                {/* Itens do Pedido (adicionar/remover pastas) */}
+                <div className="pt-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Itens do Pedido (Pastas de Músicas)
+                  </label>
+                  <div className="space-y-2">
+                    {currentEditItems.length === 0 ? (
+                      <div className="text-sm text-gray-500">Nenhuma pasta adicionada</div>
+                    ) : (
+                      currentEditItems.map((it) => (
+                        <div key={it.pasta_id} className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                          <div>
+                            <div className="font-medium">{it.nome_pasta}</div>
+                            <div className="text-xs text-gray-600">{it.qtd_musicas} músicas • {formatSize(it.tamanho_gb)} • {formatPrice(it.preco_unit)}</div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveItem(it.pasta_id)}
+                            className="text-red-600 hover:text-red-700 px-2 py-1 rounded"
+                            title="Remover"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+
+                    <div className="flex gap-2 items-center">
+                      <select
+                        value={newPastaIdForAdd}
+                        onChange={(e) => setNewPastaIdForAdd(e.target.value)}
+                        className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      >
+                        <option value="">Selecionar pasta para adicionar...</option>
+                        {allPastas.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.nome} — {formatPrice(p.preco)} — {p.qtd_musicas} músicas
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={handleAddItem}
+                        className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-1"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Adicionar
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex gap-3 pt-4">

@@ -16,12 +16,23 @@ type Pedido = {
   created_at: string;
 };
 
+// Adiciona tipo para itens do pedido na impressão
+interface ItemPrint {
+  pasta_id: string;
+  nome_pasta: string;
+  qtd_musicas: number;
+  tamanho_gb: number;
+  preco_unit: number;
+}
+
 export default function PedidoPrint() {
   const { id } = useParams();
   const [pedido, setPedido] = useState<Pedido | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const hasPrintedRef = useRef(false);
+  // Novo estado para itens
+  const [itens, setItens] = useState<ItemPrint[]>([]);
 
   useEffect(() => {
     const fetchPedido = async () => {
@@ -36,20 +47,45 @@ export default function PedidoPrint() {
         if (cached) {
           const parsed = JSON.parse(cached);
           setPedido(parsed as Pedido);
-          setLoading(false);
-          return;
+          // Continua buscando itens abaixo
         }
       } catch {}
-      const { data, error } = await supabase
-        .from('pedidos')
-        .select('*')
-        .eq('id', id)
-        .single();
 
-      if (error) {
-        setError(error.message);
-      } else {
-        setPedido(data as Pedido);
+      // Busca itens do pedido para impressão (snapshot dos dados atuais da pasta)
+      try {
+        const { data: itemsData, error: itemsError } = await supabase
+          .from('pedido_itens')
+          .select('pasta_id, nome_pasta, qtd_musicas, tamanho_gb, preco_unit')
+          .eq('pedido_id', id);
+        if (itemsError) {
+          console.error('Erro ao buscar itens do pedido:', itemsError);
+        } else {
+          const mapped: ItemPrint[] = (itemsData || []).map((i: any) => ({
+            pasta_id: i.pasta_id,
+            nome_pasta: i.nome_pasta,
+            qtd_musicas: i.qtd_musicas,
+            tamanho_gb: i.tamanho_gb,
+            preco_unit: i.preco_unit,
+          }));
+          setItens(mapped);
+        }
+      } catch (e) {
+        console.error('Falha ao carregar itens', e);
+      }
+
+      // Caso não tenha vindo do cache, busca o pedido do Supabase
+      if (!pedido) {
+        const { data, error } = await supabase
+          .from('pedidos')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (error) {
+          setError(error.message);
+        } else {
+          setPedido(data as Pedido);
+        }
       }
       setLoading(false);
     };
@@ -118,6 +154,29 @@ export default function PedidoPrint() {
             <strong>Obs:</strong> {pedido.observacoes}
           </div>
         ) : null}
+      </div>
+
+      <div style={{ borderTop: '1px dashed #000', margin: '8px 0' }} />
+
+      {/* Lista de pastas de músicas (itens) */}
+      <div style={{ fontSize: 12 }}>
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>Pastas de Músicas</div>
+        {itens.length === 0 ? (
+          <div style={{ fontSize: 11, color: '#555' }}>Nenhuma pasta</div>
+        ) : (
+          <div>
+            {itens.map((it) => (
+              <div key={it.pasta_id} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
+                <div style={{ maxWidth: 170, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.nome_pasta}</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <span>{it.qtd_musicas} músicas</span>
+                  <span>{Number(it.tamanho_gb) < 1 ? `${(Number(it.tamanho_gb) * 1024).toFixed(0)} MB` : `${Number(it.tamanho_gb).toFixed(1)} GB`}</span>
+                  <span>{formatPrice(it.preco_unit)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div style={{ borderTop: '1px dashed #000', margin: '8px 0' }} />
