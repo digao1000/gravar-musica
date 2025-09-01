@@ -232,6 +232,10 @@ export type Database = {
           updated_at: string
         }[]
       }
+      clear_all_data_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
