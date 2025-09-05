@@ -633,6 +633,7 @@ export default function PedidosManager() {
                           <div>
                             <div className="font-medium">{item.pasta.nome}</div>
                             <div className="text-sm text-gray-600">
+                              {item.pasta.codigo && <span className="font-mono text-xs bg-gray-200 px-1 rounded mr-2">{item.pasta.codigo}</span>}
                               {item.pasta.qtd_musicas} músicas • {formatSize(item.pasta.tamanho_gb)} • {item.pasta.genero}
                             </div>
                           </div>

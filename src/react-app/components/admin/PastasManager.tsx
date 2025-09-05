@@ -35,11 +35,28 @@ export default function PastasManager() {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const generos = ['Rock', 'Pop', 'MPB', 'Sertanejo', 'Eletrônica', 'Reggae', 'Hip Hop', 'Jazz', 'Clássica'];
+  const [categorias, setCategorias] = useState<Array<{id: string; nome: string; cor: string | null}>>([]);
 
   useEffect(() => {
     fetchPastas();
+    fetchCategorias();
   }, []);
+
+  const fetchCategorias = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categorias')
+        .select('id, nome, cor')
+        .eq('is_active', true)
+        .order('nome');
+      
+      if (!error && data) {
+        setCategorias(data);
+      }
+    } catch (error) {
+      console.error('Error fetching categorias:', error);
+    }
+  };
 
   const fetchPastas = async () => {
     try {
@@ -409,16 +426,16 @@ export default function PastasManager() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Gênero
+                      Categoria/Gênero
                     </label>
                     <select
                       value={formData.genero}
                       onChange={(e) => setFormData(prev => ({ ...prev, genero: e.target.value }))}
                       className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     >
-                      <option value="">Selecione um gênero</option>
-                      {generos.map(genero => (
-                        <option key={genero} value={genero}>{genero}</option>
+                      <option value="">Selecione uma categoria</option>
+                      {categorias.map(categoria => (
+                        <option key={categoria.id} value={categoria.nome}>{categoria.nome}</option>
                       ))}
                     </select>
                   </div>

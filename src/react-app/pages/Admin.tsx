@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useSupabaseAuth } from '@/react-app/hooks/useSupabaseAuth';
-import { LayoutDashboard, Package, ShoppingBag, LogOut, Menu, X, FileText, Users } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingBag, LogOut, Menu, X, FileText, Users, Tag } from 'lucide-react';
 import Dashboard from '@/react-app/components/admin/Dashboard';
 import PastasManager from '@/react-app/components/admin/PastasManager';
 import PedidosManager from '@/react-app/components/admin/PedidosManager';
 import RelatoriosManager from '@/react-app/components/admin/RelatoriosManager';
 import UsersManager from '@/react-app/components/admin/UsersManager';
+import CategoriasManager from '@/react-app/components/admin/CategoriasManager';
 
-type ActiveTab = 'dashboard' | 'pastas' | 'pedidos' | 'usuarios' | 'relatorios';
+type ActiveTab = 'dashboard' | 'pastas' | 'categorias' | 'pedidos' | 'usuarios' | 'relatorios';
 
 export default function Admin() {
   const { user, logout } = useSupabaseAuth();
@@ -18,7 +19,7 @@ export default function Admin() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
-      if (['dashboard', 'pedidos', 'pastas', 'usuarios', 'relatorios'].includes(hash)) {
+      if (['dashboard', 'pedidos', 'pastas', 'categorias', 'usuarios', 'relatorios'].includes(hash)) {
         setActiveTab(hash as ActiveTab);
       }
     };
@@ -34,6 +35,7 @@ export default function Admin() {
   const tabs = [
     { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard },
     { id: 'pastas' as const, label: 'Pastas', icon: Package },
+    { id: 'categorias' as const, label: 'Categorias', icon: Tag },
     { id: 'pedidos' as const, label: 'Pedidos', icon: ShoppingBag },
     { id: 'usuarios' as const, label: 'Usuários', icon: Users },
     { id: 'relatorios' as const, label: 'Relatórios', icon: FileText },
@@ -50,6 +52,8 @@ export default function Admin() {
         return <Dashboard />;
       case 'pastas':
         return <PastasManager />;
+      case 'categorias':
+        return <CategoriasManager />;
       case 'pedidos':
         return <PedidosManager />;
       case 'usuarios':

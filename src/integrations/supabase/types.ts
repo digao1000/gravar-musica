@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      categorias: {
+        Row: {
+          cor: string | null
+          created_at: string
+          descricao: string | null
+          id: string
+          is_active: boolean
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          cor?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          is_active?: boolean
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          cor?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          is_active?: boolean
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pastas: {
         Row: {
           capa_url: string | null
@@ -199,6 +229,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_clear_all_data: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      admin_clear_pastas: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      admin_clear_pedidos: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      clear_all_data_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       create_order: {
         Args: {
           p_cliente_contato: string
@@ -231,10 +277,6 @@ export type Database = {
           total_valor: number
           updated_at: string
         }[]
-      }
-      clear_all_data_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
       }
     }
     Enums: {

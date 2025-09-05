@@ -127,12 +127,15 @@ export default function UsersManager() {
       if (userError) throw userError;
 
       // Atualizar senha se fornecida
-      if (formData.password) {
+      if (formData.password && formData.password.trim()) {
         const { error: authError } = await supabase.auth.admin.updateUserById(
           editingUser.id,
-          { password: formData.password }
+          { password: formData.password.trim() }
         );
-        if (authError) throw authError;
+        if (authError) {
+          console.error('Erro ao atualizar senha:', authError);
+          throw new Error(`Erro ao atualizar senha: ${authError.message}`);
+        }
       }
 
       setSuccess('Usuário atualizado com sucesso!');
