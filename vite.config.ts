@@ -3,13 +3,13 @@ import path from "path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { cloudflare } from "@cloudflare/vite-plugin";
-import { mochaPlugins } from "@getmocha/vite-plugins";
+import { componentTagger } from "lovable-tagger";
 
 export default defineConfig(({ mode }) => ({
   base: "/", // 👈 garante que os assets carreguem do domínio raiz
   plugins: [
-    ...mochaPlugins(process.env as any),
     react(),
+    mode === 'development' && componentTagger(),
     mode === "production" && cloudflare(),
   ].filter(Boolean),
   server: {
