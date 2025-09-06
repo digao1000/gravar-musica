@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Music, HardDrive, ShoppingCart } from 'lucide-react';
 import { Pasta } from '@/shared/types';
 import { useCart } from '@/react-app/hooks/useCart';
+import PastaModal from './PastaModal';
 
 interface PastaCardProps {
   pasta: Pasta;
@@ -8,6 +10,7 @@ interface PastaCardProps {
 
 export default function PastaCard({ pasta }: PastaCardProps) {
   const { addItem } = useCart();
+  const [modalOpen, setModalOpen] = useState(false);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -24,27 +27,31 @@ export default function PastaCard({ pasta }: PastaCardProps) {
   };
 
   return (
-    <div className="bg-card rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden">
-      <div className="aspect-square relative overflow-hidden bg-gradient-primary">
-        {pasta.capa_url ? (
-          <img 
-            src={pasta.capa_url} 
-            alt={pasta.nome}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Music className="w-16 h-16 text-primary-foreground" />
-          </div>
-        )}
-        {pasta.genero && (
-          <div className="absolute top-2 right-2 bg-black/20 backdrop-blur-sm rounded-full px-2 py-1">
-            <span className="text-white text-xs font-medium">{pasta.genero}</span>
-          </div>
-        )}
-      </div>
-      
-      <div className="p-4">
+    <>
+      <div className="bg-card rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden">
+        <div 
+          className="aspect-square relative overflow-hidden bg-gradient-primary cursor-pointer"
+          onClick={() => setModalOpen(true)}
+        >
+          {pasta.capa_url ? (
+            <img 
+              src={pasta.capa_url} 
+              alt={pasta.nome}
+              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center hover:scale-105 transition-transform duration-300">
+              <Music className="w-16 h-16 text-primary-foreground" />
+            </div>
+          )}
+          {pasta.genero && (
+            <div className="absolute top-2 right-2 bg-black/20 backdrop-blur-sm rounded-full px-2 py-1">
+              <span className="text-white text-xs font-medium">{pasta.genero}</span>
+            </div>
+          )}
+        </div>
+        
+        <div className="p-4">
         <h3 className="font-bold text-lg text-card-foreground mb-2 line-clamp-2">
           {pasta.nome}
         </h3>
@@ -87,7 +94,14 @@ export default function PastaCard({ pasta }: PastaCardProps) {
             <span className="hidden xs:inline">Adicionar</span>
           </button>
         </div>
+        </div>
       </div>
-    </div>
+
+      <PastaModal 
+        pasta={pasta}
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+      />
+    </>
   );
 }

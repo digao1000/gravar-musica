@@ -17,15 +17,33 @@ export default function Home() {
   const [showFilters, setShowFilters] = useState(false);
   const [minPreco, setMinPreco] = useState('');
   const [maxPreco, setMaxPreco] = useState('');
+  const [categorias, setCategorias] = useState<{ nome: string }[]>([]);
 
   const { getTotals } = useCart();
   const totals = getTotals();
 
-  const generos = ['Rock', 'Pop', 'MPB', 'Sertanejo', 'Eletrônica', 'Reggae', 'Hip Hop', 'Jazz', 'Clássica'];
-
   useEffect(() => {
+    fetchCategorias();
     fetchPastas();
   }, [searchTerm, selectedGenero, minPreco, maxPreco]);
+
+  const fetchCategorias = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categorias')
+        .select('nome')
+        .eq('is_active', true)
+        .order('nome');
+
+      if (error) {
+        console.error('Error fetching categorias:', error);
+      } else {
+        setCategorias(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching categorias:', error);
+    }
+  };
 
   const fetchPastas = async () => {
     try {
@@ -142,8 +160,8 @@ export default function Home() {
                 className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               >
                 <option value="">Todos os gêneros</option>
-                {generos.map(genero => (
-                  <option key={genero} value={genero}>{genero}</option>
+                {categorias.map(categoria => (
+                  <option key={categoria.nome} value={categoria.nome}>{categoria.nome}</option>
                 ))}
               </select>
 
@@ -174,8 +192,8 @@ export default function Home() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               >
                 <option value="">Todos os gêneros</option>
-                {generos.map(genero => (
-                  <option key={genero} value={genero}>{genero}</option>
+                {categorias.map(categoria => (
+                  <option key={categoria.nome} value={categoria.nome}>{categoria.nome}</option>
                 ))}
               </select>
 
