@@ -75,11 +75,6 @@ export default function PastaCard({ pasta }: PastaCardProps) {
           </div>
         </div>
 
-        {pasta.descricao && (
-          <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
-            {pasta.descricao}
-          </p>
-        )}
 
         <div className="flex items-center justify-between">
           <span className="text-2xl font-bold text-primary">
