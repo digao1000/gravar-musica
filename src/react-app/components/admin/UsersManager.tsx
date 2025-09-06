@@ -128,13 +128,28 @@ export default function UsersManager() {
 
       // Atualizar senha se fornecida
       if (formData.password && formData.password.trim()) {
-        const { error: authError } = await supabase.auth.admin.updateUserById(
-          editingUser.id,
-          { password: formData.password.trim() }
-        );
-        if (authError) {
-          console.error('Erro ao atualizar senha:', authError);
-          throw new Error(`Erro ao atualizar senha: ${authError.message}`);
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session?.access_token) {
+          throw new Error('Sessão não encontrada');
+        }
+
+        const response = await fetch('https://jwyukeakgoideixxuwte.supabase.co/functions/v1/admin-update-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            userId: editingUser.id,
+            newPassword: formData.password.trim()
+          })
+        });
+
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Erro ao atualizar senha');
         }
       }
 
